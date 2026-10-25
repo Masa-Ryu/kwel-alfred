@@ -192,13 +192,26 @@ pub fn system_hook(hook: &str, action: &str) -> Result<()> {
                 .to_string_lossy()
                 .bytes()
                 .all(|byte| byte.is_ascii_digit())
-                && fs::read_link(entry.path().join("exe")).is_ok_and(|path| path == binary)
+                && fs::read_link(entry.path().join("exe"))
+                    .is_ok_and(|path| system_executable_matches(&path, binary))
             {
                 return Err(Error(Code::HostInUse));
             }
         }
     }
     Ok(())
+}
+#[cfg(target_os = "linux")]
+fn system_executable_matches(executable: &Path, installed: &Path) -> bool {
+    // An upgrade atomically replaces the on-disk inode. Existing sessions keep
+    // running and /proc marks their old executable as " (deleted)"; they still
+    // protect the shared installation from removal.
+    executable == installed
+        || executable
+            .as_os_str()
+            .as_encoded_bytes()
+            .strip_suffix(b" (deleted)")
+            .is_some_and(|path| path == installed.as_os_str().as_encoded_bytes())
 }
 #[cfg(target_os = "linux")]
 fn system_preflight(binary: &Path, client: &Path, manifests: &Path) -> Result<()> {
@@ -255,6 +268,16 @@ mod system_tests {
     use std::os::unix::fs::symlink;
     #[test]
     fn dpkg_preflight_preserves_unmanaged_tampered_newer_and_redirected_files() {
+        let installed = Path::new("/usr/lib/kwel-connect/kwel-native-host");
+        assert!(system_executable_matches(installed, installed));
+        assert!(system_executable_matches(
+            Path::new("/usr/lib/kwel-connect/kwel-native-host (deleted)"),
+            installed
+        ));
+        assert!(!system_executable_matches(
+            Path::new("/usr/lib/different-product/kwel-native-host (deleted)"),
+            installed
+        ));
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().canonicalize().unwrap().join("private");
         secure::ensure_dir(&root).unwrap();
