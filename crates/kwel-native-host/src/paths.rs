@@ -30,7 +30,11 @@ impl RuntimePaths {
     /// Explicit dependency injection for isolated tests and embedders. The CLI
     /// always calls current(); no IPC request can choose a runtime directory.
     pub fn at(directory: PathBuf) -> Result<Self> {
-        secure::ensure_dir(&directory)?;
+        if secure::exists(&directory)? {
+            secure::verify_dir(&directory)?;
+        } else {
+            secure::ensure_dir(&directory)?;
+        }
         let directory = std::fs::canonicalize(directory)?;
         Ok(Self {
             directory,

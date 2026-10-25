@@ -39,22 +39,22 @@ pub fn no_symlink_components(path: &Path) -> Result<()> {
     if !path.is_absolute() {
         return unsafe_path();
     }
-    let mut current = std::path::PathBuf::new();
-    for part in path.components() {
-        if matches!(part, Component::ParentDir | Component::CurDir) {
-            return unsafe_path();
-        }
-        current.push(part);
-        if !current.is_absolute() {
-            continue;
-        }
-        match fs::symlink_metadata(&current) {
+    if path
+        .components()
+        .any(|part| matches!(part, Component::ParentDir | Component::CurDir))
+    {
+        return unsafe_path();
+    }
+    // ancestors() stops at the complete root. A manually accumulated Windows
+    // verbatim drive prefix (\\?\C:) is not itself a directory to query.
+    for current in path.ancestors().collect::<Vec<_>>().into_iter().rev() {
+        match fs::symlink_metadata(current) {
             Ok(metadata) => {
                 if metadata.file_type().is_symlink() {
                     return unsafe_path();
                 }
                 #[cfg(windows)]
-                crate::windows::reject_reparse(&current)?;
+                crate::windows::reject_reparse(current)?;
                 #[cfg(unix)]
                 {
                     // Ancestors may be root-owned, including the root-owned sticky /tmp.
@@ -178,7 +178,11 @@ pub fn atomic_write(path: &Path, data: &[u8], executable: bool) -> Result<()> {
     #[cfg(windows)]
     let _ = executable; // Windows uses the owner-only DACL, not POSIX mode bits.
     let parent = path.parent().ok_or(Error(Code::UnsafePath))?;
-    ensure_dir(parent)?;
+    if exists(parent)? {
+        verify_dir(parent)?;
+    } else {
+        ensure_dir(parent)?;
+    }
     match fs::symlink_metadata(path) {
         Ok(_) => verify_regular(path, false)?,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -226,8 +230,12 @@ pub fn copy_executable(source: &Path, destination: &Path) -> Result<()> {
     #[cfg(target_os = "macos")]
     {
         let parent = destination.parent().ok_or(Error(Code::UnsafePath))?;
-        ensure_dir(parent)?;
-        if destination.exists() {
+        if exists(parent)? {
+            verify_dir(parent)?;
+        } else {
+            ensure_dir(parent)?;
+        }
+        if exists(destination)? {
             verify_regular(destination, false)?;
         }
         let temporary = parent.join(format!(

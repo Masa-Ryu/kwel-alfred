@@ -4,8 +4,33 @@ use std::path::{Path, PathBuf};
 #[cfg(unix)]
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-pub trait Stream: AsyncRead + AsyncWrite + Unpin + Send {}
-impl<T: AsyncRead + AsyncWrite + Unpin + Send> Stream for T {}
+pub trait Stream: AsyncRead + AsyncWrite + Unpin + Send {
+    /// Server-side Windows identity is available after the first bounded read.
+    fn verify_peer(&self) -> Result<()>;
+}
+#[cfg(unix)]
+impl Stream for tokio::net::UnixStream {
+    fn verify_peer(&self) -> Result<()> {
+        if self.peer_cred()?.uid() != crate::secure::uid() {
+            return Err(Error(Code::PermissionRequired));
+        }
+        Ok(())
+    }
+}
+#[cfg(windows)]
+impl Stream for tokio::net::windows::named_pipe::NamedPipeServer {
+    fn verify_peer(&self) -> Result<()> {
+        use std::os::windows::io::AsRawHandle;
+        crate::windows::verify_pipe_client(self.as_raw_handle())
+    }
+}
+#[cfg(windows)]
+impl Stream for tokio::net::windows::named_pipe::NamedPipeClient {
+    fn verify_peer(&self) -> Result<()> {
+        use std::os::windows::io::AsRawHandle;
+        crate::windows::verify_pipe_server(self.as_raw_handle())
+    }
+}
 pub type Connection = Box<dyn Stream>;
 pub async fn read(
     stream: &mut (impl AsyncRead + Unpin + ?Sized),
@@ -121,11 +146,9 @@ impl Listener {
         })
     }
     pub async fn accept(&mut self) -> Result<Connection> {
-        use std::os::windows::io::AsRawHandle;
         let server = self.server.take().ok_or(Error(Code::Disconnected))?;
         server.connect().await?;
         self.server = Some(crate::windows::pipe_server(&self.path, false)?);
-        crate::windows::verify_pipe_client(server.as_raw_handle())?;
         Ok(Box::new(server))
     }
 }

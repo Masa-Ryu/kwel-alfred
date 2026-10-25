@@ -173,6 +173,85 @@ async fn concurrent_clients_can_reuse_request_ids_without_mixing_responses() {
     host.stop().await;
 }
 #[tokio::test]
+async fn failed_native_writer_releases_both_endpoints_without_another_input() {
+    let host = Host::start(A).await;
+    let paths = host.paths.clone();
+    drop(host.output);
+    assert!(matches!(
+        tokio::time::timeout(Duration::from_secs(3), host.task)
+            .await
+            .unwrap()
+            .unwrap(),
+        Err(Error(Code::Disconnected))
+    ));
+    assert!(
+        ipc::connect(&paths.endpoint(A, false).unwrap())
+            .await
+            .is_err()
+    );
+    assert!(
+        ipc::connect(&paths.endpoint(A, true).unwrap())
+            .await
+            .is_err()
+    );
+}
+#[tokio::test]
+async fn invalid_hello_never_publishes_an_endpoint() {
+    for hello in [
+        Message::new("ping"),
+        Message {
+            profile_id: "invalid".into(),
+            ..Message::new("hello")
+        },
+        Message {
+            v: 2,
+            profile_id: A.into(),
+            ..Message::new("hello")
+        },
+    ] {
+        let directory = support::directory();
+        let paths =
+            RuntimePaths::at(directory.path().canonicalize().unwrap().join("runtime")).unwrap();
+        let (input, receiver) = mpsc::channel(4);
+        let (sender, mut output) = mpsc::channel(4);
+        input.send(Ok(hello)).await.unwrap();
+        let result = server::run_transport(
+            &format!("chrome-extension://{EXTENSION_ID}/"),
+            paths.clone(),
+            receiver,
+            sender,
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(output.recv().await.is_none());
+        assert!(paths.profiles().unwrap().is_empty());
+    }
+}
+#[tokio::test]
+async fn oversized_local_header_is_rejected_before_native_forwarding() {
+    use tokio::io::AsyncWriteExt;
+    let mut host = Host::start(A).await;
+    let mut connection = ipc::connect(&host.paths.endpoint(A, false).unwrap())
+        .await
+        .unwrap();
+    connection
+        .write_all(&((kwel_protocol::MAX_LOCAL_REQUEST_BYTES + 1) as u32).to_le_bytes())
+        .await
+        .unwrap();
+    let bytes = ipc::read(&mut *connection, MAX_MESSAGE_BYTES)
+        .await
+        .unwrap();
+    assert!(matches!(
+        serde_json::from_slice::<LocalResponse>(&bytes).unwrap(),
+        LocalResponse::Error {
+            code: Code::InvalidRequest,
+            ..
+        }
+    ));
+    assert!(host.output.try_recv().is_err());
+    host.stop().await;
+}
+#[tokio::test]
 async fn disconnect_fails_pending_requests_and_removes_owned_endpoints() {
     let mut host = Host::start(A).await;
     let paths = host.paths.clone();

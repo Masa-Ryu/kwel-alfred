@@ -5,8 +5,8 @@ PROJECT_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kwel-alfred-argv.XXXXXX")"
 trap 'rm -rf "$TEMP_DIR"' EXIT
 mkdir -p "$TEMP_DIR/workflow/scripts"
-cp "$PROJECT_DIR/workflow/scripts/"*.sh "$TEMP_DIR/workflow/scripts/"
-cat > "$TEMP_DIR/workflow/kwel-bridge" <<'MOCK'
+cp "$PROJECT_DIR/workflow/alfred/scripts/"*.sh "$TEMP_DIR/workflow/scripts/"
+cat > "$TEMP_DIR/workflow/kwel-alfred" <<'MOCK'
 #!/bin/bash
 printf '%s\0' "$@" >> "$KWEL_CAPTURE"
 if [[ "${1-}" == open ]]; then
@@ -14,7 +14,7 @@ if [[ "${1-}" == open ]]; then
 fi
 printf '%s\n' '{"skipknowledge":true,"items":[]}'
 MOCK
-chmod 755 "$TEMP_DIR/workflow/kwel-bridge" "$TEMP_DIR/workflow/scripts/"*.sh
+chmod 755 "$TEMP_DIR/workflow/kwel-alfred" "$TEMP_DIR/workflow/scripts/"*.sh
 
 SENTINEL="$TEMP_DIR/command-was-not-run"
 QUERY="日本語 'single' \"double\" spaces & punctuation ; \$(touch $SENTINEL)"

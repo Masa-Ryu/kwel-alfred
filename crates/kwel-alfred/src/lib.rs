@@ -1,6 +1,17 @@
 use kwel_protocol::{Code, Item, LocalResponse};
 use serde::Serialize;
 use std::collections::BTreeMap;
+/// Chrome activation is permitted only after the selected profile acknowledges
+/// its opaque result reference. Failure produces the Workflow notification.
+pub async fn open_acknowledged(
+    response: impl std::future::Future<Output = kwel_protocol::Result<LocalResponse>>,
+    activate: impl FnOnce() -> kwel_protocol::Result<()>,
+) -> kwel_protocol::Result<()> {
+    if !matches!(response.await?, LocalResponse::Open { ok: true, .. }) {
+        return Err(kwel_protocol::Error(Code::OpenFailed));
+    }
+    activate()
+}
 pub const WAIT_VARIABLE: &str = "KWEL_CONNECTION_DEADLINE";
 pub const WAIT_MILLIS: u64 = 45_000;
 #[derive(Debug, Serialize)]

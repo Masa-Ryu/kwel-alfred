@@ -66,3 +66,50 @@ fn connection_deadline_survives_query_edits_and_stops() {
         deadline
     );
 }
+#[tokio::test]
+async fn chrome_activation_waits_for_ack_and_failures_never_activate() {
+    use kwel_protocol::{Error, LocalResponse};
+    use std::cell::Cell;
+    let activated = Cell::new(false);
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    let opening = open_acknowledged(async { receiver.await.unwrap() }, || {
+        activated.set(true);
+        Ok(())
+    });
+    tokio::pin!(opening);
+    tokio::select! {
+        _ = &mut opening => panic!("opened before Kwel acknowledged"),
+        _ = tokio::task::yield_now() => {}
+    }
+    assert!(!activated.get());
+    sender
+        .send(Ok(LocalResponse::Open {
+            v: 1,
+            request_id: "r".into(),
+            ok: true,
+        }))
+        .unwrap();
+    opening.await.unwrap();
+    assert!(activated.get());
+    for response in [
+        Err(Error(Code::ResultExpired)),
+        Err(Error(Code::Disconnected)),
+        Err(Error(Code::Timeout)),
+        Ok(LocalResponse::Open {
+            v: 1,
+            request_id: "r".into(),
+            ok: false,
+        }),
+    ] {
+        activated.set(false);
+        assert!(
+            open_acknowledged(async { response }, || {
+                activated.set(true);
+                Ok(())
+            })
+            .await
+            .is_err()
+        );
+        assert!(!activated.get());
+    }
+}

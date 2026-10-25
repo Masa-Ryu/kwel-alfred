@@ -20,15 +20,20 @@ async fn run() -> Result<()> {
         std::path::Path::new(&value)
             .file_name()
             .map(|value| value.to_string_lossy().into_owned())
-    }) && matches!(name.as_str(), "preinst" | "prerm")
-    {
-        return install::system_hook(&name, args.first().map(String::as_str).unwrap_or(""));
+    }) && matches!(
+        name.as_str(),
+        "preinst" | "prerm" | "kwel-connect.preinst" | "kwel-connect.prerm"
+    ) {
+        let hook = name.strip_prefix("kwel-connect.").unwrap_or(&name);
+        return install::system_hook(hook, args.first().map(String::as_str).unwrap_or(""));
     }
     match args.first().map(String::as_str) {
         Some(origin) if origin.starts_with("chrome-extension://") => {
             if !kwel_protocol::valid_origin(origin, kwel_protocol::EXTENSION_ID) {
                 return Err(Error(Code::PermissionRequired));
             }
+            let _installation =
+                install::session_guard(&Layout::current()?, &std::env::current_exe()?)?;
             // Rust's Windows stdio reads/writes pipe HANDLEs directly, without
             // the CRT text mode. Native messages are bytes on every platform.
             // Dedicated bounded threads also avoid Tokio's uncancellable stdin

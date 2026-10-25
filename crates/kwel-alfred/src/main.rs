@@ -3,7 +3,7 @@ use kwel_client::{Client, Operation};
 #[cfg(target_os = "macos")]
 use kwel_native_host::install::{self, Layout};
 use kwel_native_host::paths::RuntimePaths;
-use kwel_protocol::{Code, Error, LocalRequest, LocalResponse, Result};
+use kwel_protocol::{Code, Error, LocalRequest, Result};
 #[tokio::main]
 async fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
@@ -61,12 +61,9 @@ async fn open(args: &[String]) -> Result<()> {
         Operation::Request(request @ LocalRequest::Open { .. }) => request,
         _ => return Err(Error(Code::InvalidRequest)),
     };
-    if !matches!(
-        Client::current()?.request(request).await?,
-        LocalResponse::Open { ok: true, .. }
-    ) {
-        return Err(Error(Code::OpenFailed));
-    }
+    kwel_alfred::open_acknowledged(Client::current()?.request(request), activate_chrome).await
+}
+fn activate_chrome() -> Result<()> {
     #[cfg(target_os = "macos")]
     if !std::process::Command::new("/usr/bin/open")
         .args(["-b", "com.google.Chrome"])

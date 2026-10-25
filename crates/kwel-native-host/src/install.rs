@@ -245,6 +245,7 @@ mod registry_tests {
     }
 }
 fn write_registration(layout: &Layout) -> Result<()> {
+    secure::ensure_dir(&layout.manifests)?;
     for name in [HOST_NAME, LEGACY_HOST_NAME] {
         let path = layout.manifest(name);
         let manifest = Manifest {
@@ -274,6 +275,21 @@ pub fn active(paths: &RuntimePaths) -> Result<bool> {
 pub fn installed_version(layout: &Layout) -> Result<Option<String>> {
     Ok(record(&layout.record())?.map(|r| r.version))
 }
+/// Installed Hosts hold a shared lock for their entire Native session. This
+/// closes the race between the in-use preflight and a new Chrome connection.
+pub fn session_guard(layout: &Layout, executable: &Path) -> Result<Option<fs::File>> {
+    if !secure::exists(&layout.binary())?
+        || fs::canonicalize(executable)? != fs::canonicalize(layout.binary())?
+    {
+        return Ok(None);
+    }
+    secure::verify_dir(&layout.root)?;
+    let guard = secure::lock(&layout.root.join("install.lock"))?;
+    guard
+        .try_lock_shared()
+        .map_err(|_| Error(Code::HostInUse))?;
+    Ok(Some(guard))
+}
 /// The explicit installer rejects in-use updates. Alfred may reuse an existing
 /// protocol-v1 Host instead; an older Workflow never overwrites a newer Host.
 pub fn install(
@@ -284,7 +300,14 @@ pub fn install(
 ) -> Result<bool> {
     secure::ensure_dir(&layout.root)?;
     let guard = secure::lock(&layout.root.join("install.lock"))?;
-    guard.try_lock().map_err(|_| Error(Code::HostInUse))?;
+    let shared_reuse = if guard.try_lock().is_err() {
+        if !allow_reuse || guard.try_lock_shared().is_err() {
+            return Err(Error(Code::HostInUse));
+        }
+        true
+    } else {
+        false
+    };
     let current = record(&layout.record())?;
     let pending = record(&layout.pending())?;
     let desired = semver::Version::parse(VERSION).map_err(|_| Error(Code::InstallConflict))?;
@@ -312,6 +335,13 @@ pub fn install(
         } else if current.is_some() && pending.is_none() {
             return Err(Error(Code::InstallConflict));
         }
+    }
+    if shared_reuse {
+        return if current.is_some() && pending.is_none() {
+            Ok(false)
+        } else {
+            Err(Error(Code::InstallConflict))
+        };
     }
     if let Some(current) = &current {
         let existing =

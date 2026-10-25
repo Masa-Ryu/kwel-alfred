@@ -46,6 +46,25 @@ fn installation_is_idempotent_exact_origin_and_removes_only_owned_files() {
     assert!(!layout.manifest(HOST_NAME).exists());
 }
 #[test]
+fn session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse() {
+    let (_temp, layout, runtime, source) = fixture();
+    install::install(&source, &layout, &runtime, false).unwrap();
+    let guard = install::session_guard(&layout, &layout.binary())
+        .unwrap()
+        .unwrap();
+    assert!(!install::install(&source, &layout, &runtime, true).unwrap());
+    assert!(matches!(
+        install::install(&source, &layout, &runtime, false),
+        Err(Error(Code::HostInUse))
+    ));
+    assert!(matches!(
+        install::uninstall(&layout, &runtime),
+        Err(Error(Code::HostInUse))
+    ));
+    drop(guard);
+    install::uninstall(&layout, &runtime).unwrap();
+}
+#[test]
 fn newer_host_is_reused_and_partial_newer_update_cannot_be_downgraded() {
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
@@ -185,6 +204,48 @@ fn symlink_and_foreign_owner_checks_fail_closed() {
     assert!(secure::verify_regular(foreign, false).is_err());
     fs::set_permissions(&runtime.directory, fs::Permissions::from_mode(0o755)).unwrap();
     assert!(secure::verify_dir(&runtime.directory).is_err());
+}
+#[cfg(unix)]
+#[tokio::test]
+async fn atomic_file_operations_reject_symlinks_unsafe_parents_and_socket_type_confusion() {
+    use std::os::unix::{fs::PermissionsExt, fs::symlink};
+    let temp = support::directory();
+    let root = temp.path().canonicalize().unwrap();
+    let data = root.join("file");
+    secure::atomic_write(&data, b"original", false).unwrap();
+    assert_eq!(
+        fs::metadata(&data).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    let executable = root.join("executable");
+    secure::copy_executable(&data, &executable).unwrap();
+    assert_eq!(
+        fs::metadata(&executable).unwrap().permissions().mode() & 0o777,
+        0o700
+    );
+    let link = root.join("link");
+    symlink(&data, &link).unwrap();
+    assert!(secure::atomic_write(&link, b"unsafe", false).is_err());
+    assert!(secure::copy_executable(&link, &executable).is_err());
+    assert!(secure::copy_executable(&data, &link).is_err());
+    assert!(secure::remove_regular(&link).is_err());
+    let dangling = root.join("dangling");
+    symlink(root.join("missing"), &dangling).unwrap();
+    assert!(secure::atomic_write(&dangling, b"unsafe", false).is_err());
+    let socket = root.join("s");
+    let _listener = ipc::Listener::bind(&socket).unwrap();
+    assert!(secure::verify_regular(&socket, false).is_err());
+    assert!(ipc::Listener::bind(&data).is_err());
+    assert!(secure::no_symlink_components(&root.join("../escape")).is_err());
+    let runtime = root.join("runtime");
+    RuntimePaths::at(runtime.clone()).unwrap();
+    fs::set_permissions(&runtime, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(RuntimePaths::at(runtime).is_err());
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(secure::atomic_write(&data, b"unsafe", false).is_err());
+    assert!(secure::copy_executable(&data, &executable).is_err());
+    assert_eq!(fs::read(&data).unwrap(), b"original");
+    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).unwrap();
 }
 #[cfg(target_os = "macos")]
 #[test]

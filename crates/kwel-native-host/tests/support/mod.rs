@@ -7,8 +7,14 @@ pub fn directory() -> tempfile::TempDir {
     let root = std::path::PathBuf::from("/tmp");
     #[cfg(windows)]
     let root = std::env::temp_dir();
-    tempfile::Builder::new()
+    let directory = tempfile::Builder::new()
         .prefix("kwct-")
         .tempdir_in(root)
-        .unwrap()
+        .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    directory
 }

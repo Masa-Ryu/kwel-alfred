@@ -32,7 +32,7 @@ def build():
     destination = DIST / "bin"
     destination.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
-    environment["RUSTFLAGS"] = environment.get("RUSTFLAGS", "") + f" --remap-path-prefix={ROOT}=."
+    environment["RUSTFLAGS"] = environment.get("RUSTFLAGS", "") + f" --remap-path-prefix={Path.home()}=/build --remap-path-prefix={ROOT}=."
     if sys.platform == "darwin":
         for target in ("aarch64-apple-darwin", "x86_64-apple-darwin"):
             run("cargo", "build", "--workspace", "--release", "--locked", "--target", target, cwd=ROOT, env=environment)

@@ -68,6 +68,8 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Unit, protocol, Native Messaging, IPC and registration tests
         run: cargo test --workspace --locked
+      - name: Alfred shell argument and failure notification regression tests
+        run: bash scripts/test-workflow-argv.sh
       - name: Build installers and official Alfred Workflow
         run: python3 scripts/build.py package
       - name: Verify package contents and permissions

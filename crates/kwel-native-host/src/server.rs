@@ -300,10 +300,12 @@ async fn serve_public(mut listener: ipc::Listener, session: Arc<Session>) {
             )
             .await
             {
-                Ok(Ok(bytes)) => match serde_json::from_slice::<LocalRequest>(&bytes) {
-                    Ok(request) => session.local(request).await,
-                    Err(_) => LocalResponse::error("", Code::InvalidRequest),
-                },
+                Ok(Ok(bytes)) if stream.verify_peer().is_ok() => {
+                    match serde_json::from_slice::<LocalRequest>(&bytes) {
+                        Ok(request) => session.local(request).await,
+                        Err(_) => LocalResponse::error("", Code::InvalidRequest),
+                    }
+                }
                 _ => LocalResponse::error("", Code::InvalidRequest),
             };
             let _ =
@@ -332,22 +334,24 @@ async fn serve_control(mut listener: ipc::Listener, session: Arc<Session>, token
             let operation =
                 tokio::time::timeout(Duration::from_secs(1), ipc::read(&mut *stream, 1024)).await;
             let ok = match operation {
-                Ok(Ok(bytes)) => match serde_json::from_slice::<Control>(&bytes) {
-                    Ok(request)
-                        if request.token.as_bytes().ct_eq(token.as_bytes()).into()
-                            && kwel_protocol::id(&request.session) =>
-                    {
-                        match request.operation.as_str() {
-                            "claim" => session.claim(request.session).is_ok(),
-                            "release" => {
-                                session.release(&request.session);
-                                true
+                Ok(Ok(bytes)) if stream.verify_peer().is_ok() => {
+                    match serde_json::from_slice::<Control>(&bytes) {
+                        Ok(request)
+                            if request.token.as_bytes().ct_eq(token.as_bytes()).into()
+                                && kwel_protocol::id(&request.session) =>
+                        {
+                            match request.operation.as_str() {
+                                "claim" => session.claim(request.session).is_ok(),
+                                "release" => {
+                                    session.release(&request.session);
+                                    true
+                                }
+                                _ => false,
                             }
-                            _ => false,
                         }
+                        _ => false,
                     }
-                    _ => false,
-                },
+                }
                 _ => false,
             };
             let _ =
@@ -412,7 +416,11 @@ pub async fn run_transport(
     ];
     let result = async {
         session.send(Message::new("hello-ack")).await?;
-        while let Some(message) = input.recv().await {
+        loop {
+            let message = tokio::select! {
+                message = input.recv() => match message {Some(message) => message, None => break},
+                _ = session.output.closed() => return Err(Error(Code::Disconnected)),
+            };
             let message = message?;
             message.envelope()?;
             if !matches!(
