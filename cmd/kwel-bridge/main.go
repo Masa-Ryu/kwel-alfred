@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,11 @@ var (
 	allowedExtensionID = ""
 	version            = "1.00"
 	kwelClientSupport  = "false"
+)
+
+const (
+	connectionDeadlineVariable = "KWEL_CONNECTION_DEADLINE"
+	connectionWaitWindow       = 45 * time.Second
 )
 
 func main() {
@@ -99,14 +105,14 @@ func search(args []string) error {
 		return writeAlfred(alfred.Notice("Kwel could not register its Chrome connection safely."))
 	}
 	if prepared {
-		return writeAlfred(alfred.Notice("Kwel is connecting to Alfred. Try this search again in a moment."))
+		return writeAlfred(waitForConnection(alfred.Notice("Kwel is not connected. Check Alfred Integration and your Kwel Profile ID."), os.Getenv(connectionDeadlineVariable), time.Now()))
 	}
 	updated, updateErr := install.UpdateIfNeeded(executable, home, allowedExtensionID, version)
 	if updateErr != nil {
 		return writeAlfred(alfred.Notice("Kwel could not update its Chrome connection safely."))
 	}
 	if updated {
-		return writeAlfred(alfred.Notice("Kwel is reconnecting after a Workflow update. Try this search again in a moment."))
+		return writeAlfred(waitForConnection(alfred.Notice("Kwel is not connected. Check Alfred Integration and your Kwel Profile ID."), os.Getenv(connectionDeadlineVariable), time.Now()))
 	}
 
 	directory, err := install.EnsureSocketDirectory()
@@ -125,11 +131,43 @@ func searchProfile(directory, profileID, query string, limit int) alfred.Output 
 	if err != nil {
 		var clientError *relay.ClientError
 		if errors.As(err, &clientError) {
-			return alfred.Notice(clientError.Message)
+			output := alfred.Notice(clientError.Message)
+			if clientError.Code == protocol.CodeDisconnected || clientError.Code == protocol.CodeHostNotFound {
+				return waitForConnection(output, os.Getenv(connectionDeadlineVariable), time.Now())
+			}
+			return finishConnectionWait(output)
 		}
-		return alfred.Notice("Kwel search is unavailable. Check Chrome and Kwel, then retry.")
+		return finishConnectionWait(alfred.Notice("Kwel search is unavailable. Check Chrome and Kwel, then retry."))
 	}
-	return alfred.Results(result, profileID)
+	return finishConnectionWait(alfred.Results(result, profileID))
+}
+
+// Kwel retries a missing Native Messaging host every 30 seconds. Let Alfred
+// refresh the current query across that first retry instead of requiring typing.
+// Session variables preserve the deadline when the query changes, so retries
+// cannot keep extending the wait. Each run still uses only the configured profile.
+func waitForConnection(failure alfred.Output, previousDeadline string, now time.Time) alfred.Output {
+	latestDeadline := now.Add(connectionWaitWindow).UnixMilli()
+	deadline, err := strconv.ParseInt(previousDeadline, 10, 64)
+	if err != nil || deadline <= 0 || deadline > latestDeadline {
+		deadline = latestDeadline
+	}
+	if now.UnixMilli() >= deadline {
+		return finishConnectionWait(failure)
+	}
+	output := alfred.Notice("Connecting to Kwel…")
+	output.Items[0].Subtitle = "Keep Chrome open. Search results will appear automatically."
+	output.Rerun = 1
+	output.Variables = map[string]string{connectionDeadlineVariable: strconv.FormatInt(deadline, 10)}
+	return output
+}
+
+func finishConnectionWait(output alfred.Output) alfred.Output {
+	if output.Variables == nil {
+		output.Variables = make(map[string]string)
+	}
+	output.Variables[connectionDeadlineVariable] = ""
+	return output
 }
 
 func openResult(args []string) error {

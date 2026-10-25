@@ -10,8 +10,10 @@ import (
 )
 
 type Output struct {
-	SkipKnowledge bool   `json:"skipknowledge"`
-	Items         []Item `json:"items"`
+	SkipKnowledge bool              `json:"skipknowledge"`
+	Rerun         float64           `json:"rerun,omitempty"`
+	Variables     map[string]string `json:"variables,omitempty"`
+	Items         []Item            `json:"items"`
 }
 
 type Item struct {

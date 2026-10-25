@@ -12,7 +12,7 @@ Requires macOS, Alfred 5 Powerpack, Google Chrome, and Kwel with Alfred Integrat
 4. Open the Workflow's **Configure Workflow…** and paste the ID into **Kwel Profile ID**.
 5. In Alfred Preferences → **Features → Default Results → Setup fallback searches**, add **Search Kwel** and save.
 
-The first **Search Kwel** invocation registers the connection. If Kwel stays disconnected, turn **Alfred Integration** off and on, then retry.
+The first **Search Kwel** invocation registers the connection. Keep Chrome open; results appear automatically when Kwel connects. If it remains disconnected, check Alfred Integration and copy its current Profile ID into the Workflow configuration.
 
 ## Use
 
