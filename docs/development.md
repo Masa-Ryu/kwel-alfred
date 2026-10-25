@@ -1,40 +1,35 @@
 # Development
 
-## Build and test
+## Workspace
 
-Use Linux or macOS with Go 1.22+, a C compiler for the Go race detector, Python 3, LLVM's `llvm-lipo`, and **resvg 0.45.1**. Linux also needs GNU coreutils for the metadata-preserving installation tests.
+| Crate | Responsibility |
+| --- | --- |
+| `kwel-protocol` | Native v1 and local v1 types, validation and framing |
+| `kwel-native-host` | bounded async sessions, secure IPC, OS registration and installers |
+| `kwel-client` | language-neutral JSON CLI and public protocol client |
+| `kwel-alfred` | official Alfred JSON, connection retry and Chrome activation |
 
-On Ubuntu 24.04, install `gcc libc6-dev python3 llvm-18`. The workflows install Go 1.27.3 and resvg 0.45.1 from official distributions and verify their pinned SHA256 hashes before extraction. On macOS, LLVM is available through Homebrew; resvg can be installed with `cargo install resvg --version 0.45.1 --locked`.
-
-Set `LLVM_LIPO` if the command is versioned or outside PATH, for example `export LLVM_LIPO=llvm-lipo-18` on Ubuntu or `export LLVM_LIPO="$(brew --prefix llvm)/bin/llvm-lipo"` on macOS.
-
-```sh
-bash scripts/verify.sh
-```
-
-This runs `go vet ./...`, `go test -race ./...`, shell argument checks, the Darwin arm64/amd64 builds with `CGO_ENABLED=0`, Universal Binary creation, and package verification. To generate only the package:
+Use the Rust toolchain pinned by `rust-toolchain.toml`. Cargo.lock is committed. Tokio is used for bounded asynchronous Named Pipe/Unix socket I/O, cancellation and timeouts; no unbounded per-connection thread model is used. Windows FFI is isolated. Product executables have no Go dependency.
 
 ```sh
-bash scripts/package-workflow.sh
-bash scripts/verify-package.sh
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked
+cargo audit --deny warnings
+python3 scripts/build.py package
+python3 scripts/build.py verify
 ```
 
-The output is `dist/Kwel.alfredworkflow`. Packaging uses the tracked SVG, fixed renderer version, sorted entries, fixed ZIP timestamps, and explicit file permissions.
+Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` additionally exercises actual package install/upgrade/removal only on disposable GitHub-hosted runners; it refuses ordinary local environments. Do not run installer tests against a real user home.
 
-## Security checks and platform limits
+macOS builds need both Darwin Rust targets, Xcode's `lipo`, `pkgbuild`, `productbuild`, and **resvg 0.45.1** (`cargo install resvg --version 0.45.1 --locked`). Windows packaging needs NSIS. Ubuntu packaging uses `dpkg-deb`. These are development tools; end users install prebuilt packages.
 
-The Linux tests exercise the shared ownership, permissions, symlink rejection, private socket directory checks, Native Messaging origin validation, and profile isolation. The CLI remains macOS-only.
+macOS builds all three executables for arm64/x86_64 and creates Universal binaries. Alfred packages retain sorted ZIP entries, fixed timestamps, explicit Unix modes, the single tracked SVG source and required empty Profile ID configuration. Installer inputs are selected explicitly and never include prefs, caches, tokens or user data.
 
-The Darwin filesystem implementation retains `ditto --rsrc --extattr --acl` to preserve quarantine and other macOS metadata. Linux uses GNU `cp --preserve=all`; a Linux test pass does not verify macOS quarantine, ACL/resource-fork preservation, Alfred, Chrome activation, or Spaces behavior. Those macOS-specific behaviors require separate macOS validation and are not covered by CI.
+## Versions and migration
 
-## CI and releases
+The original `1.00` display version maps to SemVer **1.0.0**; new release tags are `v1.0.0` and later. `v1.00` is a historical spelling, not a new tag format. Do not create a second release for an existing distribution. `scripts/check-release-version.py` compares the tag, Cargo, distribution config and Workflow version. Release publication requires the tagged commit already be on main.
 
-Both workflows run directly on the **self-hosted Linux runner with labels `self-hosted, n100`**. The runner needs Git, curl, GCC, Python 3, tar, sha256sum, apt-get, and dpkg-deb. Go and resvg use isolated temporary directories. Missing LLVM 18 and GitHub CLI packages are downloaded from the runner's signed apt repositories and extracted into the same temporary directory without a system installation. Test CI runs for pull requests, pushes to main, and manual dispatch with read-only repository permissions and no configured Secrets.
+The GitHub repository was renamed in place to `Masa-Ryu/kwel-connect`; existing history, Issue #2 and PR #1 remain. Canonical URLs use the new name. The Alfred bundle ID `com.kwel.alfred.search` is intentionally stable for preference/import compatibility; the Native Host has the new canonical name and a legacy alias.
 
-After merging, create and push a tag matching `config/distribution.json` and `workflow/info.plist`; version `1.00` requires tag `v1.00`. `scripts/check-release-version.py` rejects a mismatch or a non-production distribution.
-
-The repository allows only owner-maintained Actions. These workflows use shell steps with exact-commit checkout and checksum-pinned tools, so no external Actions or Action allowlist changes are required.
-
-The Release job repeats validation and generates `Kwel.alfredworkflow` and `SHA256SUMS` before publication. Only the Release job has `contents: write`, and its GitHub token is exposed only to the final publication step. It verifies the checksum, refuses an existing Release, and uses `gh release create --verify-tag --draft`. The draft is published only after both assets upload successfully. A failed upload leaves an unpublished draft for manual review; retries never overwrite an existing Release.
-
-**Release files are not signed with an Apple Developer ID and are not notarized.** CI does not perform signing or notarization.
+Issue #2 originally requested a research-only RFC. The implementation request supersedes that scope. The Go test baseline and generated v1 fixtures are retained as evidence before Go removal. Migration status, actual CI and remaining real-app checks are recorded in the implementation report.

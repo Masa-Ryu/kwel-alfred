@@ -1,0 +1,36 @@
+[workspace]
+members = ["crates/kwel-protocol", "crates/kwel-native-host", "crates/kwel-client", "crates/kwel-alfred"]
+resolver = "2"
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+repository = "https://github.com/Masa-Ryu/kwel-connect"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "io-util", "net", "sync", "time"] }
+uuid = { version = "1.18", features = ["v4"] }
+url = "2.5"
+semver = "1.0"
+sha2 = "0.11"
+subtle = "2.6"
+libc = "0.2"
+rustix = { version = "1.1", features = ["process"] }
+tempfile = "3.23"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Threading", "Win32_System_Pipes", "Win32_System_Memory", "Win32_System_SystemServices"] }
+winreg = "0.56"
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 1
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"

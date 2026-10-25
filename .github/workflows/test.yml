@@ -1,48 +1,100 @@
 name: Test
-
 on:
+  pull_request:
   push:
     branches: ['**']
   workflow_dispatch:
-
+    inputs:
+      release-artifacts:
+        description: Save validated installers for review
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      release-artifacts:
+        type: boolean
+        default: false
 permissions:
   contents: read
-
 concurrency:
-  group: test-${{ github.ref }}
+  group: test-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
-
 jobs:
-  test:
-    runs-on: [self-hosted, n100]
-    timeout-minutes: 30
+  rust:
+    name: Rust and installer (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            name: macos-arm64
+          - runner: macos-15-intel
+            name: macos-intel
+          - runner: windows-2025
+            name: windows-x64
+          - runner: ubuntu-24.04
+            name: ubuntu-amd64
+          - runner: ubuntu-24.04-arm
+            name: ubuntu-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
-    env:
-      CGO_ENABLED: '1'
-      GOTOOLCHAIN: local
     steps:
-      - name: Verify Linux build dependencies
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install pinned Rust toolchain
         run: |
-          test "$(uname -s)" = Linux
-          cat /etc/os-release
-          for tool in curl git gcc python3 tar sha256sum apt-get dpkg-deb; do
-            command -v "$tool"
-          done
-      - name: Check out the exact workflow commit
+          rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy --component llvm-tools-preview
+          if [ "$RUNNER_OS" = macOS ]; then
+            rustup target add --toolchain 1.99.0 aarch64-apple-darwin x86_64-apple-darwin
+            cargo install resvg --version 0.45.1 --locked --root "$RUNNER_TEMP/kwel-tools"
+            printf '%s\n' "$RUNNER_TEMP/kwel-tools/bin" >> "$GITHUB_PATH"
+          fi
+      - name: Install Windows package builder
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          source_dir="$(mktemp -d "$RUNNER_TEMP/kwel-source.XXXXXX")"
-          git -C "$source_dir" init
-          git -C "$source_dir" fetch --no-tags --depth 1 "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$GITHUB_SHA"
-          git -C "$source_dir" checkout --detach FETCH_HEAD
-          test "$(git -C "$source_dir" rev-parse HEAD)" = "$GITHUB_SHA"
-          printf 'SOURCE_DIR=%s\n' "$source_dir" >> "$GITHUB_ENV"
-      - name: Install verified Go and SVG renderer
-        run: |
-          cd "$SOURCE_DIR"
-          bash scripts/setup-ci-tools.sh
-      - name: Vet, race tests, argv checks and macOS Universal package
-        run: |
-          cd "$SOURCE_DIR"
-          bash scripts/verify.sh
+          if (!(Test-Path 'C:\Program Files (x86)\NSIS\makensis.exe')) {
+            choco install nsis --version=3.11 --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Unit, protocol, Native Messaging, IPC and registration tests
+        run: cargo test --workspace --locked
+      - name: Build installers and official Alfred Workflow
+        run: python3 scripts/build.py package
+      - name: Verify package contents and permissions
+        run: python3 scripts/build.py verify
+      - name: Install, upgrade, register and uninstall on this OS
+        run: python3 scripts/test-installer.py
+      - name: Save validated release files
+        if: inputs.release-artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            dist/*.pkg
+            dist/*.exe
+            dist/*.deb
+            dist/*.alfredworkflow
+          if-no-files-found: error
+          retention-days: 2
+  audit:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo audit --deny warnings

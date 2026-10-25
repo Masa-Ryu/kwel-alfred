@@ -5,7 +5,7 @@ cd -- "$(dirname -- "$0")/.."
 profile_id="${KWEL_RESULT_PROFILE_ID:-}"
 open_ref="${1-}"
 
-if ./kwel-bridge open --profile-id "$profile_id" --ref "$open_ref" >/dev/null; then
+if ./kwel-alfred open --profile-id "$profile_id" --ref "$open_ref" >/dev/null; then
 	exit 0
 fi
 

@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Masa-Ryu/kwel-connect/raw/main/docs/schemas/native-messaging-v1.schema.json",
+  "title": "Kwel Native Messaging v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "type": {
+      "type": "string"
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "x-utf16-maxLength": 100
+    },
+    "query": {
+      "type": "string",
+      "maxLength": 200,
+      "x-utf16-maxLength": 200
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "profileId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "profileLabel": {
+      "type": "string",
+      "maxLength": 64,
+      "x-utf16-maxLength": 64,
+      "pattern": "^[^\\r\\n]*$"
+    },
+    "openRef": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "url",
+          "domain",
+          "openRef"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "openRef": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          }
+        }
+      }
+    },
+    "hasMore": {
+      "type": "boolean"
+    },
+    "code": {
+      "enum": [
+        "BAD_REQUEST",
+        "INVALID_REQUEST",
+        "INCOMPATIBLE_VERSION",
+        "NOT_READY",
+        "RESULT_EXPIRED",
+        "OPEN_FAILED",
+        "SEARCH_FAILED",
+        "PROFILE_CONFLICT",
+        "HOST_NOT_FOUND",
+        "DISCONNECTED",
+        "TIMEOUT",
+        "PERMISSION_REQUIRED"
+      ]
+    },
+    "message": {
+      "type": "string"
+    },
+    "ok": {
+      "const": true
+    }
+  },
+  "required": [
+    "v",
+    "type"
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "type": {
+          "const": "hello"
+        }
+      },
+      "required": [
+        "profileId"
+      ]
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "hello-ack"
+        }
+      },
+      "required": []
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "ping"
+        }
+      },
+      "required": []
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "pong"
+        }
+      },
+      "required": []
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "search"
+        }
+      },
+      "required": [
+        "requestId",
+        "limit"
+      ]
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "search-result"
+        }
+      },
+      "required": [
+        "requestId",
+        "hasMore"
+      ]
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "open-page"
+        }
+      },
+      "required": [
+        "requestId",
+        "openRef"
+      ]
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "open-result"
+        }
+      },
+      "required": [
+        "requestId",
+        "ok"
+      ]
+    },
+    {
+      "properties": {
+        "type": {
+          "const": "error"
+        }
+      },
+      "required": [
+        "code"
+      ]
+    }
+  ]
+}

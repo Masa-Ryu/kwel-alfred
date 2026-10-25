@@ -172,14 +172,14 @@
 
 Kwel for Chrome: https://chromewebstore.google.com/detail/kwel/mhablbmgafbdofgaffhdnnknjhafmlin
 
-1. Download Kwel.alfredworkflow from https://github.com/Masa-Ryu/kwel-alfred/releases and double-click it to import into Alfred.
-2. Enable Alfred Integration in Kwel Settings and copy the Profile ID.
+1. Download Kwel.alfredworkflow from https://github.com/Masa-Ryu/kwel-connect/releases and double-click it to import into Alfred.
+2. Enable Local Integration (Alfred Integration in older versions) in Kwel Settings and copy the Profile ID.
 3. Paste the ID into Kwel Profile ID below.
 4. Add Search Kwel in Alfred Preferences → Features → Default Results → Setup fallback searches and save.
 
 Open Alfred, type Kyoto, choose Search Kwel, and press Return. Select a page and press Return to open it in Chrome.
 
-The first Search Kwel invocation registers the connection. Keep Chrome open; results appear automatically when Kwel connects. If it remains disconnected, check Alfred Integration and copy its current Profile ID into the Workflow configuration.</string>
+The first Search Kwel invocation installs or reuses the shared Kwel Connect Host. Keep Chrome open; results appear automatically when Kwel connects. If it remains disconnected, check Local Integration and the Profile ID in the same Chrome profile.</string>
 	<key>uidata</key>
 	<dict>
 		<key>5B612B92-409B-4AC4-9F39-7E0AE18A8991</key>
@@ -212,7 +212,7 @@ The first Search Kwel invocation registers the connection. Keep Chrome open; res
 		</dict>
 	</dict>
 	<key>version</key>
-	<string>1.00</string>
+	<string>1.0.0</string>
 	<key>webaddress</key>
 	<string>https://kwel.ryu.zone</string>
 	<key>userconfigurationconfig</key>
@@ -230,7 +230,7 @@ The first Search Kwel invocation registers the connection. Keep Chrome open; res
 				<true/>
 			</dict>
 			<key>description</key>
-			<string>Paste the Profile ID from Kwel Settings → Alfred Integration.</string>
+			<string>Paste the Profile ID from Kwel Settings → Local Integration.</string>
 			<key>label</key>
 			<string>Kwel Profile ID</string>
 			<key>type</key>
