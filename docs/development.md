@@ -24,7 +24,7 @@ Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` ad
 
 macOS builds need both Darwin Rust targets, Xcode's `lipo`, `pkgbuild`, `productbuild`, the pinned LLVM tools component, and **resvg 0.45.1** (`cargo install resvg --version 0.45.1 --locked`). Windows packaging needs NSIS 3.11. Ubuntu packaging uses `dpkg-deb`. Install the audit tool with `cargo install cargo-audit --version 0.22.2 --locked`. These are development tools; end users install prebuilt packages.
 
-macOS builds all three executables for arm64/x86_64 and creates Universal binaries. Alfred packages retain sorted ZIP entries, fixed timestamps, explicit Unix modes, the single tracked SVG source and required empty Profile ID configuration. Installer inputs are selected explicitly and never include prefs, caches, tokens or user data.
+macOS builds all three executables for arm64/x86_64 and creates Universal binaries. Windows release builds explicitly target x64 MSVC with static CRT; package verification rejects references to separately installed Visual C++ runtime DLLs. Ubuntu debs declare their libc/libgcc dependencies. Alfred packages retain sorted ZIP entries, fixed timestamps, explicit Unix modes, the single tracked SVG source and required empty Profile ID configuration. Installer inputs are selected explicitly and never include prefs, caches, tokens or user data.
 
 ## Versions and migration
 

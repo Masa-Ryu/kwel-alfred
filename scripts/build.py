@@ -42,10 +42,18 @@ def build():
                 run("/usr/bin/lipo", destination / name, "-verify_arch", architecture)
             (destination / name).chmod(0o700)
     else:
-        run("cargo", "build", "--workspace", "--release", "--locked", cwd=ROOT, env=environment)
+        if sys.platform == "win32":
+            environment["RUSTFLAGS"] += " -C target-feature=+crt-static"
+            # An explicit target keeps crt-static away from host proc-macros.
+            target = "x86_64-pc-windows-msvc"
+            run("cargo", "build", "--workspace", "--release", "--locked", "--target", target, cwd=ROOT, env=environment)
+            source = ROOT / "target" / target / "release"
+        else:
+            run("cargo", "build", "--workspace", "--release", "--locked", cwd=ROOT, env=environment)
+            source = ROOT / "target/release"
         for name in BINS:
             filename = name + (".exe" if sys.platform == "win32" else "")
-            shutil.copyfile(ROOT / "target/release" / filename, destination / filename)
+            shutil.copyfile(source / filename, destination / filename)
             if sys.platform != "win32":
                 (destination / filename).chmod(0o755)
 
@@ -205,6 +213,35 @@ def verify_workflow(path):
     print("Alfred graph, configuration, JSON CLI scripts, permissions and Universal binaries verified.")
 
 
+def pe_dependencies(data, pe):
+    """Read PE32+ import names so release checks verify actual DLL dependencies."""
+    optional = pe + 24
+    assert struct.unpack_from("<H", data, optional)[0] == 0x20B
+    sections = optional + struct.unpack_from("<H", data, pe + 20)[0]
+    count = struct.unpack_from("<H", data, pe + 6)[0]
+
+    def file_offset(rva):
+        for index in range(count):
+            virtual_size, address, size, offset = struct.unpack_from("<IIII", data, sections + 40 * index + 8)
+            if address <= rva < address + max(virtual_size, size):
+                assert rva - address < size
+                return offset + rva - address
+        raise ValueError("Invalid PE import address")
+
+    address, size = struct.unpack_from("<II", data, optional + 120)
+    assert address and size >= 20
+    start = file_offset(address)
+    names = []
+    for index in range(min(size // 20, 256)):
+        descriptor = struct.unpack_from("<IIIII", data, start + 20 * index)
+        if not any(descriptor):
+            return names
+        offset = file_offset(descriptor[3])
+        end = data.index(b"\0", offset, offset + 256)
+        names.append(data[offset:end].decode("ascii").lower())
+    raise ValueError("Unterminated PE import directory")
+
+
 def verify():
     if sys.platform == "darwin":
         verify_workflow(DIST / "Kwel.alfredworkflow")
@@ -220,6 +257,7 @@ def verify():
             data = (DIST / "bin" / (name + ".exe")).read_bytes()
             pe = struct.unpack_from("<I", data, 0x3C)[0]
             assert data[pe:pe + 4] == b"PE\0\0" and struct.unpack_from("<H", data, pe + 4)[0] == 0x8664
+            assert not any(name.startswith(("vcruntime", "msvcp")) for name in pe_dependencies(data, pe)), "A separate Visual C++ runtime must not be required"
     else:
         architecture = {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
         package = DIST / f"KwelConnect-ubuntu-{architecture}.deb"

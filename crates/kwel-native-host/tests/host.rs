@@ -152,22 +152,23 @@ async fn search_open_correlation_single_use_and_profile_isolation() {
 #[tokio::test]
 async fn concurrent_clients_can_reuse_request_ids_without_mixing_responses() {
     let mut host = Host::start(A).await;
-    let one = tokio::spawn(exchange(host.paths.clone(), A, search(A, "r")));
-    let two = tokio::spawn(exchange(host.paths.clone(), A, search(A, "r")));
+    let mut first_query = search(A, "r");
+    first_query["query"] = "one".into();
+    let mut second_query = search(A, "r");
+    second_query["query"] = "two".into();
+    let one = tokio::spawn(exchange(host.paths.clone(), A, first_query));
+    let two = tokio::spawn(exchange(host.paths.clone(), A, second_query));
     let first = host.next().await;
     let second = host.next().await;
     assert_ne!(first.request_id, second.request_id);
-    host.input
-        .send(Ok(result(&second.request_id)))
-        .await
-        .unwrap();
-    host.input
-        .send(Ok(result(&first.request_id)))
-        .await
-        .unwrap();
-    for task in [one, two] {
+    for request in [second, first] {
+        let mut response = result(&request.request_id);
+        response.items[0].title = request.query;
+        host.input.send(Ok(response)).await.unwrap();
+    }
+    for (task, expected) in [(one, "one"), (two, "two")] {
         assert!(
-            matches!(task.await.unwrap(),LocalResponse::Search{request_id,..} if request_id=="r")
+            matches!(task.await.unwrap(),LocalResponse::Search{request_id,items,..} if request_id=="r" && items[0].title==expected)
         );
     }
     host.stop().await;
