@@ -95,6 +95,16 @@ assert 'open_ref="${1-}"' in open_script
 assert 'exec ./kwel-bridge open --profile-id "$profile_id" --ref "$open_ref"' in open_script
 assert "KWEL_PROFILE_ID" not in open_script
 assert all((root / name).is_file() for name in ["kwel-bridge", "icon.png", "README.md", "LICENSE"])
+icon = (root / "icon.png").read_bytes()
+assert icon[:8] == b"\x89PNG\r\n\x1a\n"
+assert int.from_bytes(icon[16:20], "big") == 512
+assert int.from_bytes(icon[20:24], "big") == 512
+offset = 8
+while offset < len(icon):
+    length = int.from_bytes(icon[offset:offset + 4], "big")
+    assert offset + length + 12 <= len(icon)
+    assert icon[offset + 4:offset + 8] not in {b"eXIf", b"tEXt", b"zTXt", b"iTXt", b"tIME"}
+    offset += length + 12
 assert re.fullmatch(r"[a-p]{32}", config["chromeExtensionId"])
 binary_strings = subprocess.check_output(["/usr/bin/strings", str(root / "kwel-bridge")], text=True)
 for protocol_string in [config["chromeExtensionId"], "com.kwel.alfred", "profileId", "open-page", "openRef", "KWEL_RESULT_PROFILE_ID", "com.google.Chrome"]:
