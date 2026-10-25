@@ -3,13 +3,13 @@ package main
 import (
 	"errors"
 	"net"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"com.kwel/alfredbridge/internal/protocol"
 	"com.kwel/alfredbridge/internal/relay"
+	"com.kwel/alfredbridge/internal/testutil"
 )
 
 func TestOpenActivatesChromeOnlyAfterKwelAcknowledgesTheSelectedResult(t *testing.T) {
@@ -26,11 +26,7 @@ func TestOpenActivatesChromeOnlyAfterKwelAcknowledgesTheSelectedResult(t *testin
 		{name: "activation error is reported after opening", activationErr: activationFailure},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			directory, err := os.MkdirTemp("/private/tmp", "kwa-open-test-")
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() { _ = os.RemoveAll(directory) })
+			directory := testutil.SocketDir(t)
 			profileID := "00000000-0000-4000-8000-00000000000a"
 			openRef := "00000000-0000-4000-8000-000000000101"
 			socketPath := filepath.Join(directory, profileID+".sock")

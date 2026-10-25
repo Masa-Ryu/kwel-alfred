@@ -1,0 +1,48 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: [self-hosted, n100]
+    container: ubuntu:24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      LLVM_LIPO: llvm-lipo-18
+    steps:
+      - name: Install Linux build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git gcc libc6-dev python3 llvm-18
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Install pinned SVG renderer
+        run: |
+          tool_dir="$(mktemp -d "$RUNNER_TEMP/kwel-tools.XXXXXX")"
+          curl --proto '=https' --tlsv1.2 --fail --location --retry 3 \
+            https://github.com/linebender/resvg/releases/download/v0.45.1/resvg-linux-x86_64.tar.gz \
+            --output "$tool_dir/resvg.tar.gz"
+          printf '%s  %s\n' 3c1d52850a78bc4ed0e9d05605b53ad21bb5313184f14bf72515d29cb98cda10 "$tool_dir/resvg.tar.gz" | sha256sum --check
+          tar -xzf "$tool_dir/resvg.tar.gz" -C "$tool_dir" resvg
+          printf '%s\n' "$tool_dir" >> "$GITHUB_PATH"
+      - name: Vet, race tests, argv checks and macOS Universal package
+        run: bash scripts/verify.sh

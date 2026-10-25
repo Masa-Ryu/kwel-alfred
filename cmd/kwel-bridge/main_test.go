@@ -12,6 +12,7 @@ import (
 	"com.kwel/alfredbridge/internal/alfred"
 	"com.kwel/alfredbridge/internal/install"
 	"com.kwel/alfredbridge/internal/protocol"
+	"com.kwel/alfredbridge/internal/testutil"
 )
 
 func TestSearchSetupActionForBridgeStates(t *testing.T) {
@@ -76,11 +77,7 @@ func TestSearchValidatesProfileConfigurationBeforeHostSetup(t *testing.T) {
 }
 
 func TestSearchProfileChangesUseOnlyConfiguredSocketAndBindResults(t *testing.T) {
-	directory, err := os.MkdirTemp("/private/tmp", "kw-profile-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(directory) })
+	directory := testutil.SocketDir(t)
 	profileA := "00000000-0000-4000-8000-00000000000a"
 	profileB := "00000000-0000-4000-8000-00000000000b"
 	requestsA := mockConfiguredProfile(t, directory, profileA, "Result A")

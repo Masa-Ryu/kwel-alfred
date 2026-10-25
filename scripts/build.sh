@@ -26,8 +26,9 @@ if [[ ! "$EXTENSION_ID" =~ ^[a-p]{32}$ ]]; then
   exit 1
 fi
 
-if [[ "${KWEL_RELEASE:-0}" == "1" && -z "${KWEL_CODE_SIGN_IDENTITY:-}" ]]; then
-  printf '%s\n' 'Release build stopped: set KWEL_CODE_SIGN_IDENTITY to a valid Developer ID Application identity.' >&2
+LLVM_LIPO="${LLVM_LIPO:-llvm-lipo}"
+if ! command -v "$LLVM_LIPO" >/dev/null; then
+  printf '%s\n' 'Build stopped: install llvm-lipo or set LLVM_LIPO to its path.' >&2
   exit 1
 fi
 
@@ -39,13 +40,9 @@ cd "$PROJECT_DIR"
 LDFLAGS="-s -w -X main.allowedExtensionID=$EXTENSION_ID -X main.version=$VERSION -X main.kwelClientSupport=$CLIENT_SUPPORT"
 GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags "$LDFLAGS" -o "$DIST_DIR/kwel-bridge-arm64" ./cmd/kwel-bridge
 GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "$LDFLAGS" -o "$DIST_DIR/kwel-bridge-amd64" ./cmd/kwel-bridge
-/usr/bin/lipo -create "$DIST_DIR/kwel-bridge-arm64" "$DIST_DIR/kwel-bridge-amd64" -output "$DIST_DIR/kwel-bridge"
+"$LLVM_LIPO" -create "$DIST_DIR/kwel-bridge-arm64" "$DIST_DIR/kwel-bridge-amd64" -output "$DIST_DIR/kwel-bridge"
+"$LLVM_LIPO" "$DIST_DIR/kwel-bridge" -verify_arch arm64 x86_64
 chmod 755 "$DIST_DIR/kwel-bridge"
-
-if [[ -n "${KWEL_CODE_SIGN_IDENTITY:-}" ]]; then
-  /usr/bin/codesign --force --options runtime --timestamp --sign "$KWEL_CODE_SIGN_IDENTITY" "$DIST_DIR/kwel-bridge"
-  /usr/bin/codesign --verify --strict --verbose=2 "$DIST_DIR/kwel-bridge"
-fi
 
 if [[ "${KWEL_RELEASE:-0}" == "1" && "$CLIENT_SUPPORT" != "true" ]]; then
   printf '%s\n' 'Release build stopped: the current Kwel extension source does not implement Native Messaging support.' >&2

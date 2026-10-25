@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"com.kwel/alfredbridge/internal/protocol"
+	"com.kwel/alfredbridge/internal/testutil"
 )
 
 // Synthetic fixtures only; no user profile or credential is used.
@@ -401,13 +402,5 @@ func readMessage(t *testing.T, reader io.Reader) protocol.Message {
 
 func shortSocketDir(t *testing.T) string {
 	t.Helper()
-	directory, err := os.MkdirTemp("/private/tmp", "kwa-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(directory) })
-	if err := os.Chmod(directory, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	return directory
+	return testutil.SocketDir(t)
 }

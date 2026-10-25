@@ -59,7 +59,7 @@ func legacySocketPath(home string) string {
 }
 
 func SocketDirectory() string {
-	return filepath.Join("/private/tmp", fmt.Sprintf("kwa-%d", securefs.CurrentUID()))
+	return securefs.RuntimeDirectory()
 }
 
 func EnsureSocketDirectory() (string, error) {

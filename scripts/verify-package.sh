@@ -12,16 +12,36 @@ fi
 
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kwel-alfred-verify.XXXXXX")"
 trap 'rm -rf "$TEMP_DIR"' EXIT
-/usr/bin/unzip -q "$PACKAGE_PATH" -d "$TEMP_DIR"
-/usr/bin/plutil -lint "$TEMP_DIR/info.plist"
-/usr/bin/lipo -verify_arch arm64 "$TEMP_DIR/kwel-bridge"
-/usr/bin/lipo -verify_arch x86_64 "$TEMP_DIR/kwel-bridge"
+python3 - "$PACKAGE_PATH" "$TEMP_DIR" <<'PY_ARCHIVE'
+import stat
+import sys
+import zipfile
+from pathlib import Path
+
+root = Path(sys.argv[2])
+executables = {'kwel-bridge', 'scripts/search.sh', 'scripts/open-result.sh'}
+expected = executables | {'info.plist', 'icon.png', 'README.md', 'LICENSE'}
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    names = archive.namelist()
+    assert len(names) == len(set(names)), 'Duplicate archive entries are forbidden.'
+    assert set(names) == expected, f'Unexpected package contents: {set(names) ^ expected}'
+    for entry in archive.infolist():
+        mode = entry.external_attr >> 16
+        expected_mode = 0o755 if entry.filename in executables else 0o644
+        assert entry.create_system == 3 and stat.S_ISREG(mode), f'Not a regular Unix file: {entry.filename}'
+        assert stat.S_IMODE(mode) == expected_mode, f'Unsafe package permissions: {entry.filename}'
+        destination = root / entry.filename
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(archive.read(entry))  # Also verifies the ZIP CRC.
+        destination.chmod(expected_mode)
+PY_ARCHIVE
+LLVM_LIPO="${LLVM_LIPO:-llvm-lipo}"
+"$LLVM_LIPO" "$TEMP_DIR/kwel-bridge" -verify_arch arm64 x86_64
 
 python3 - "$CONFIG_FILE" "$TEMP_DIR/info.plist" "$TEMP_DIR" <<'PY'
 import json
 import plistlib
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -111,9 +131,9 @@ while offset < len(icon):
     assert icon[offset + 4:offset + 8] not in {b"eXIf", b"tEXt", b"zTXt", b"iTXt", b"tIME"}
     offset += length + 12
 assert re.fullmatch(r"[a-p]{32}", config["chromeExtensionId"])
-binary_strings = subprocess.check_output(["/usr/bin/strings", str(root / "kwel-bridge")], text=True)
+binary = (root / "kwel-bridge").read_bytes()
 for protocol_string in [config["chromeExtensionId"], "com.kwel.alfred", "profileId", "open-page", "openRef", "KWEL_RESULT_PROFILE_ID", "com.google.Chrome"]:
-    assert protocol_string in binary_strings, protocol_string
+    assert protocol_string.encode() in binary, protocol_string
 
 print("Required Profile ID configuration, direct Fallback search/open graph, scripts, protocol, and universal binary slices are valid.")
 PY
