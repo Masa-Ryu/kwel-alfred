@@ -4,7 +4,7 @@
 
 Use Linux or macOS with Go 1.22+, a C compiler for the Go race detector, Python 3, LLVM's `llvm-lipo`, and **resvg 0.45.1**. Linux also needs GNU coreutils for the metadata-preserving installation tests.
 
-On Ubuntu 24.04, install `gcc libc6-dev python3 llvm-18`. The workflows download resvg 0.45.1 from its official release and verify the archive's pinned SHA256 before extraction. On macOS, LLVM is available through Homebrew; resvg can be installed with `cargo install resvg --version 0.45.1 --locked`.
+On Ubuntu 24.04, install `gcc libc6-dev python3 llvm-18`. The workflows install Go 1.27.3 and resvg 0.45.1 from official distributions and verify their pinned SHA256 hashes before extraction. On macOS, LLVM is available through Homebrew; resvg can be installed with `cargo install resvg --version 0.45.1 --locked`.
 
 Set `LLVM_LIPO` if the command is versioned or outside PATH, for example `export LLVM_LIPO=llvm-lipo-18` on Ubuntu or `export LLVM_LIPO="$(brew --prefix llvm)/bin/llvm-lipo"` on macOS.
 
@@ -33,6 +33,8 @@ Both workflows use the **self-hosted Linux runner with labels `self-hosted, n100
 
 After merging, create and push a tag matching `config/distribution.json` and `workflow/info.plist`; version `1.00` requires tag `v1.00`. `scripts/check-release-version.py` rejects a mismatch or a non-production distribution.
 
-Release CI repeats validation, generates `Kwel.alfredworkflow` and `SHA256SUMS`, and passes those files to a separate publication job. Only that job has `contents: write`. It verifies the checksum, refuses an existing Release, and uses `gh release create --verify-tag --draft`. The draft is published only after both assets upload successfully. A failed upload leaves an unpublished draft for manual review; retries never overwrite an existing Release.
+The repository allows only owner-maintained Actions. These workflows use shell steps with exact-commit checkout and checksum-pinned tools, so no external Actions or Action allowlist changes are required.
+
+The Release job repeats validation and generates `Kwel.alfredworkflow` and `SHA256SUMS` before publication. Only the Release job has `contents: write`, and its GitHub token is exposed only to the final publication step. It verifies the checksum, refuses an existing Release, and uses `gh release create --verify-tag --draft`. The draft is published only after both assets upload successfully. A failed upload leaves an unpublished draft for manual review; retries never overwrite an existing Release.
 
 **Release files are not signed with an Apple Developer ID and are not notarized.** CI does not perform signing or notarization.

@@ -12,81 +12,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  release:
     runs-on: [self-hosted, n100]
     container: ubuntu:24.04
     timeout-minutes: 30
+    permissions:
+      contents: write
     defaults:
       run:
         shell: bash
     env:
       LLVM_LIPO: llvm-lipo-18
+      CGO_ENABLED: '1'
+      GOTOOLCHAIN: local
       KWEL_RELEASE: '1'
       RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - name: Install Linux build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates curl git gcc libc6-dev python3 llvm-18
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: stable
-          cache: false
-      - name: Install pinned SVG renderer
+          apt-get install -y --no-install-recommends ca-certificates curl git gcc libc6-dev python3 llvm-18 gh
+      - name: Check out the exact workflow commit
         run: |
-          tool_dir="$(mktemp -d "$RUNNER_TEMP/kwel-tools.XXXXXX")"
-          curl --proto '=https' --tlsv1.2 --fail --location --retry 3 \
-            https://github.com/linebender/resvg/releases/download/v0.45.1/resvg-linux-x86_64.tar.gz \
-            --output "$tool_dir/resvg.tar.gz"
-          printf '%s  %s\n' 3c1d52850a78bc4ed0e9d05605b53ad21bb5313184f14bf72515d29cb98cda10 "$tool_dir/resvg.tar.gz" | sha256sum --check
-          tar -xzf "$tool_dir/resvg.tar.gz" -C "$tool_dir" resvg
-          printf '%s\n' "$tool_dir" >> "$GITHUB_PATH"
+          source_dir="$(mktemp -d "$RUNNER_TEMP/kwel-source.XXXXXX")"
+          git -C "$source_dir" init
+          git -C "$source_dir" fetch --no-tags --depth 1 "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$GITHUB_SHA"
+          git -C "$source_dir" checkout --detach FETCH_HEAD
+          test "$(git -C "$source_dir" rev-parse HEAD)" = "$GITHUB_SHA"
+          printf 'SOURCE_DIR=%s\n' "$source_dir" >> "$GITHUB_ENV"
+      - name: Install verified Go and SVG renderer
+        run: |
+          cd "$SOURCE_DIR"
+          bash scripts/setup-ci-tools.sh
       - name: Verify release version
-        run: python3 scripts/check-release-version.py "$RELEASE_TAG"
-      - name: Vet, race tests, argv checks and macOS Universal package
-        run: bash scripts/verify.sh
-      - name: Generate checksum
-        working-directory: dist
-        run: sha256sum Kwel.alfredworkflow > SHA256SUMS
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-package
-          path: |
-            dist/Kwel.alfredworkflow
-            dist/SHA256SUMS
-          if-no-files-found: error
-          retention-days: 1
-
-  release:
-    needs: build
-    runs-on: [self-hosted, n100]
-    container: ubuntu:24.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Install GitHub CLI
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates gh libstdc++6
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-package
-          path: dist
+          cd "$SOURCE_DIR"
+          python3 scripts/check-release-version.py "$RELEASE_TAG"
+      - name: Vet, race tests, argv checks and macOS Universal package
+        run: |
+          cd "$SOURCE_DIR"
+          bash scripts/verify.sh
+      - name: Generate checksum
+        run: |
+          cd "$SOURCE_DIR/dist"
+          sha256sum Kwel.alfredworkflow > SHA256SUMS
       - name: Publish completed release
-        working-directory: dist
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          cd "$SOURCE_DIR/dist"
           sha256sum --check SHA256SUMS
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             printf '%s\n' 'A release already exists for this tag; refusing to replace it.' >&2
