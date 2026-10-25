@@ -6,5 +6,4 @@ prefs.plist
 *.p12
 *.pfx
 target/
-.migration-oracle/
 __pycache__/

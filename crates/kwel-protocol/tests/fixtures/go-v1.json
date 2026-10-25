@@ -394,5 +394,513 @@
     "check": "envelope",
     "payload": "{\"v\":1,\"type\":\"ping\"}{}",
     "accepted": false
+  },
+  {
+    "name": "URL compatibility 0: 'HTTPS://example.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"HTTPS://example.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "HTTPS://example.com/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 1: ' https://example.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\" https://example.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 2: 'https://example.com/ '",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com/ \",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://example.com/ "
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 3: 'https://example.com/with space'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com/with space\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://example.com/with space"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 4: 'https://example.com/\\npath'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com/\\npath\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 5: 'https://exa\\tmple.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://exa\\tmple.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 6: 'https:\\\\example.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https:\\\\example.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 7: 'https:example.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https:example.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 8: 'https:///example.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https:///example.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 9: 'https:////example.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https:////example.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 10: 'https://example.com:65536/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com:65536/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://example.com:65536/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 11: 'https://example.com:abc/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com:abc/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 12: 'https://example.com:/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com:/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://example.com:/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 13: 'https://%65xample.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://%65xample.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 14: 'https://example.com/%zz'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com/%zz\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 15: 'https://example.com/?q=%zz'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com/?q=%zz\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://example.com/?q=%zz"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 16: 'https://example.com/#%zz'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com/#%zz\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 17: 'https://[::1]/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://[::1]/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://[::1]/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 18: 'https://[fe80::1%25en0]/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://[fe80::1%25en0]/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://[fe80::1%25en0]/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 19: 'https://user:pass@example.com/path'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://user:pass@example.com/path\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://user:pass@example.com/path"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 20: 'https://example.com/\\\\x'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://example.com/\\\\x\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://example.com/\\x"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 21: 'https://[bad]/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://[bad]/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 22: 'https://exa|mple.com/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://exa|mple.com/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL compatibility 23: 'https://127.1/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://127.1/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://127.1/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL compatibility 24: 'https://999.999.999.999/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"https://999.999.999.999/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "https://999.999.999.999/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 0: 'http://a:b:80/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://a:b:80/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "http://a:b:80/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 1: 'http://[::ffff:127.0.0.1]/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://[::ffff:127.0.0.1]/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "http://[::ffff:127.0.0.1]/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 2: 'http://[::1%25]/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://[::1%25]/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL authority 3: 'http://[v1.foo]/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://[v1.foo]/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL authority 4: 'http://]/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://]/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "http://]/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 5: 'http://[bad]/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://[bad]/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL authority 6: 'http://a\u003cb\u003e/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://a\u003cb\u003e/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "http://a\u003cb\u003e/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 7: 'http://a%25b/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://a%25b/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "http://a%25b/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 8: 'http://%ff/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://%ff/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "http://%ff/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 9: 'http://user%ff:pass@host/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://user%ff:pass@host/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "http://user%ff:pass@host/"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 10: 'http://é@host/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://é@host/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
+  },
+  {
+    "name": "URL authority 11: 'http://host/%00'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://host/%00\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": true,
+    "normalized": {
+      "hasMore": false,
+      "items": [
+        {
+          "domain": "",
+          "openRef": "00000000-0000-4000-8000-000000000101",
+          "title": "Fixture",
+          "url": "http://host/%00"
+        }
+      ],
+      "requestId": "r",
+      "type": "search-result",
+      "v": 1
+    }
+  },
+  {
+    "name": "URL authority 12: 'http://host\\x7f/'",
+    "check": "search-result",
+    "payload": "{\"v\":1,\"type\":\"search-result\",\"requestId\":\"r\",\"hasMore\":false,\"items\":[{\"title\":\"Fixture\",\"url\":\"http://host/\",\"domain\":\"\",\"openRef\":\"00000000-0000-4000-8000-000000000101\"}]}",
+    "accepted": false
   }
 ]

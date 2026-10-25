@@ -6,7 +6,7 @@ use kwel_native_host::{
 use kwel_protocol::{Code, Error, MAX_MESSAGE_BYTES, Message, Result};
 use std::io;
 use tokio::sync::mpsc;
-#[tokio::main]
+#[tokio::main(worker_threads = 2)]
 async fn main() {
     if let Err(error) = run().await {
         eprintln!("kwel-native-host: {}", error.0.message());

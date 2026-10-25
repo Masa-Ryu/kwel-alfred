@@ -20,13 +20,13 @@ The internal coordination token is owner-only and absent from the public schema.
 
 ## Installation and migration
 
-macOS installs in the current user's `Library/Application Support/Kwel/NativeBridge`; Windows uses LocalAppData plus HKCU. Ubuntu debs install root-owned binaries and Google Chrome's documented system manifest location; each spawned Host still executes as Chrome's user and creates user-isolated IPC. Installers never enumerate or copy browsing databases or profile identities.
+macOS installs in the current user's `Library/Application Support/Kwel/NativeBridge`; Windows uses LocalAppData plus HKCU. Ubuntu debs install root-owned binaries and Google Chrome's documented system manifest location; each spawned Host still executes as Chrome's user and creates user-isolated IPC. Installers do not inspect Chrome profiles or browsing databases, or store/transmit profile IDs. They inspect owned runtime lock metadata only for in-use protection.
 
 Registration is preflighted, recognized product/version metadata is checked, and binaries/manifests are replaced atomically in private directories. An owner-only pending hash journal allows interrupted upgrades to retry without an older installer rolling back newer files. A newer compatible Host is reused by an older Alfred client. Unrecognized registrations and changed executable hashes are preserved and cause an error.
 
 macOS copy uses `ditto --rsrc --extattr --acl`; quarantine is not stripped. Tests retain source quarantine flags, extended attributes and resource forks. No installer disables Gatekeeper, SmartScreen, UAC, Defender or browser permission checks. Distributions are unsigned and unnotarized; OS approval/reputation limitations still apply.
 
-Both `com.kwel.bridge` and the legacy `com.kwel.alfred` registration point to the shared Host. Old AlfredBridge files are not blindly deleted. A read-only v1 adapter can finish using an already-running legacy socket until Kwel reconnects; the Workflow's stable bundle ID preserves its Profile ID preference. Removing the Workflow never calls Host uninstall. Explicit Host uninstall refuses an active shared Host and removes only recognized files/registrations, retaining runtime/legacy/unrelated data.
+Both `com.kwel.bridge` and the legacy `com.kwel.alfred` registration point to the shared Host. Old AlfredBridge files are not blindly deleted. A read-only v1 adapter can finish using an already-running legacy socket until Kwel reconnects; the Workflow's stable bundle ID preserves its Profile ID preference. The old process retains its old IPC behavior until it exits. If migration coordination crashes while that Go process holds a duplicate claim, reconnecting Kwel is required to clear the old process's non-expiring claim. New Rust sessions use expiring leases. Removing the Workflow never calls Host uninstall. Explicit Host uninstall refuses an active shared Host and removes only recognized files/registrations, retaining runtime/legacy/unrelated data.
 
 ## CI and release boundary
 

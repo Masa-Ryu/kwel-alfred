@@ -60,8 +60,8 @@
           },
           "url": {
             "type": "string",
-            "format": "uri",
-            "pattern": "^https?://"
+            "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
+            "description": "HTTP(S) result data. Host, escaping and control-character validation follow the normative Native v1 rules and Go reference fixtures."
           },
           "domain": {
             "type": "string"

@@ -17,6 +17,8 @@ Kwelの検索をローカルアプリから使うための公式連携基盤で�
 
 macOSではpkgを開いて自分のホームフォルダへ、Windowsではexeを開いて現在のユーザーへインストールします。Ubuntuでは対応するdebをパッケージインストーラーで開きます。Host登録は自動で行われ、Rustのインストールは不要です。
 
+更新時は、使用中のChromeプロフィールでLocal IntegrationをOFFにしてからインストーラーを開き、更新後にONへ戻します。
+
 Kwel Settingsで **Local Integration** をONにします。以前のKwelでは **Alfred Integration** という名前です。Chromeの権限確認が表示された場合は内容を確認して承認してください。
 
 配布物は未署名・未公証です。GatekeeperやSmartScreenでブロックされる場合があります。OSの確認手順で配布元を確認してください。

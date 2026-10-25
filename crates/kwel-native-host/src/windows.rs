@@ -205,6 +205,13 @@ pub fn verify_private(path: &Path) -> Result<()> {
             return failed();
         }
         let descriptor = Descriptor(descriptor);
+        let mut control = 0;
+        let mut revision = 0;
+        if GetSecurityDescriptorControl(descriptor.0, &mut control, &mut revision) == 0
+            || control & SE_DACL_PROTECTED == 0
+        {
+            return Err(Error(Code::UnsafePath));
+        }
         if owner.is_null() || dacl.is_null() || sid_string(owner)? != expected {
             return Err(Error(Code::UnsafePath));
         }

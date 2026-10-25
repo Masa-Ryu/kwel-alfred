@@ -124,11 +124,9 @@ pub fn valid_origin(value: &str, extension: &str) -> bool {
         && (value == format!("chrome-extension://{extension}/")
             || value == format!("chrome-extension://{extension}"))
 }
+mod uri;
 pub fn http_url(value: &str) -> bool {
-    url::Url::parse(value).is_ok_and(|url| {
-        matches!(url.scheme(), "http" | "https")
-            && url.host_str().is_some_and(|host| !host.is_empty())
-    })
+    uri::http(value)
 }
 fn zero(value: &u32) -> bool {
     *value == 0

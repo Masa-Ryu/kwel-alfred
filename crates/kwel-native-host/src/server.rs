@@ -100,7 +100,9 @@ impl Session {
         if self.conflicted() {
             return Err(Error(Code::ProfileConflict));
         }
-        let _guard = self.ping_gate.lock().await;
+        let _guard = tokio::time::timeout(Duration::from_secs(2), self.ping_gate.lock())
+            .await
+            .map_err(|_| Error(Code::Busy))?;
         let (sender, receiver) = oneshot::channel();
         self.state.lock().expect("session state").ping = Some(sender);
         self.send(Message::new("ping")).await?;
@@ -558,6 +560,32 @@ mod tests {
             ..Message::new("search-result")
         });
         assert!(session.state.lock().unwrap().references.is_empty());
+    }
+    #[tokio::test]
+    async fn canceled_request_cannot_deliver_its_late_response_to_the_next_search() {
+        let (session, mut output) = session();
+        let copy = session.clone();
+        let old = tokio::spawn(async move { copy.request(search()).await });
+        let first = output.recv().await.unwrap();
+        old.abort();
+        assert!(old.await.unwrap_err().is_cancelled());
+        assert!(session.state.lock().unwrap().pending.is_empty());
+        let copy = session.clone();
+        let next = tokio::spawn(async move { copy.request(search()).await });
+        let second = output.recv().await.unwrap();
+        assert_ne!(first.request_id, second.request_id);
+        session.deliver(Message {
+            request_id: first.request_id,
+            has_more: Some(false),
+            ..Message::new("search-result")
+        });
+        assert!(!next.is_finished());
+        session.deliver(Message {
+            request_id: second.request_id,
+            has_more: Some(false),
+            ..Message::new("search-result")
+        });
+        assert_eq!(next.await.unwrap().unwrap().request_id, "local");
     }
     #[tokio::test]
     async fn expired_and_cross_session_open_refs_never_reach_chrome() {

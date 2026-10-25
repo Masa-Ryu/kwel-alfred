@@ -137,7 +137,7 @@ def linux():
         stage = Path(temporary)
         control = stage / "DEBIAN"
         control.mkdir()
-        (control / "control").write_text(f"Package: kwel-connect\nVersion: {VERSION}\nArchitecture: {architecture}\nMaintainer: Kwel <noreply@kwel.ryu.zone>\nDepends: libc6 (>= 2.39)\nDescription: Kwel official local integration Native Host and JSON client\nHomepage: https://github.com/Masa-Ryu/kwel-connect\n")
+        (control / "control").write_text((ROOT / "packaging/linux/control.in").read_text().replace("@VERSION@", VERSION).replace("@ARCH@", architecture))
         host = stage / "usr/lib/kwel-connect/kwel-native-host"
         client = stage / "usr/bin/kwel-bridge"
         host.parent.mkdir(parents=True)
@@ -221,7 +221,10 @@ def verify():
             pe = struct.unpack_from("<I", data, 0x3C)[0]
             assert data[pe:pe + 4] == b"PE\0\0" and struct.unpack_from("<H", data, pe + 4)[0] == 0x8664
     else:
-        for package in DIST.glob("*.deb"):
+        architecture = {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
+        package = DIST / f"KwelConnect-ubuntu-{architecture}.deb"
+        assert package.is_file()
+        for package in (package,):
             run("dpkg-deb", "--info", package)
             with tempfile.TemporaryDirectory(prefix="kwel-deb-verify-") as temporary:
                 run("dpkg-deb", "--extract", package, temporary)

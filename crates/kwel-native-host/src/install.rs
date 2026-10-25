@@ -178,33 +178,14 @@ fn registry_preflight(name: &str, path: &Path) -> Result<()> {
 #[cfg(target_os = "linux")]
 pub fn system_hook(hook: &str, action: &str) -> Result<()> {
     let binary = Path::new("/usr/lib/kwel-connect/kwel-native-host");
-    if hook == "preinst" {
-        for name in [HOST_NAME, LEGACY_HOST_NAME] {
-            let path = PathBuf::from(format!(
-                "/etc/opt/chrome/native-messaging-hosts/{name}.json"
-            ));
-            if secure::exists(&path)? {
-                let manifest: Manifest = serde_json::from_slice(&secure::read(&path)?)?;
-                if manifest.path != binary
-                    || manifest.name != name
-                    || manifest.kind != "stdio"
-                    || manifest.allowed_origins != [format!("chrome-extension://{EXTENSION_ID}/")]
-                {
-                    return Err(Error(Code::InstallConflict));
-                }
-            }
-        }
-        let record_path = Path::new("/usr/lib/kwel-connect/release.json");
-        if let Some(record) = record(record_path)? {
-            let previous = semver::Version::parse(&record.version)
-                .map_err(|_| Error(Code::InstallConflict))?;
-            if previous
-                > semver::Version::parse(VERSION).map_err(|_| Error(Code::InstallConflict))?
-            {
-                return Err(Error(Code::DowngradeRefused));
-            }
-        }
-    } else if hook == "prerm" && matches!(action, "remove" | "deconfigure") {
+    if hook == "preinst" || (hook == "prerm" && matches!(action, "remove" | "deconfigure")) {
+        system_preflight(
+            binary,
+            Path::new("/usr/bin/kwel-bridge"),
+            Path::new("/etc/opt/chrome/native-messaging-hosts"),
+        )?;
+    }
+    if hook == "prerm" && matches!(action, "remove" | "deconfigure") {
         for entry in fs::read_dir("/proc")?.flatten() {
             if entry
                 .file_name()
@@ -218,6 +199,104 @@ pub fn system_hook(hook: &str, action: &str) -> Result<()> {
         }
     }
     Ok(())
+}
+#[cfg(target_os = "linux")]
+fn system_preflight(binary: &Path, client: &Path, manifests: &Path) -> Result<()> {
+    let previous = record(
+        &binary
+            .parent()
+            .ok_or(Error(Code::UnsafePath))?
+            .join("release.json"),
+    )?;
+    if previous.as_ref().is_some_and(|record| {
+        semver::Version::parse(&record.version).is_ok_and(|version| {
+            version > semver::Version::parse(VERSION).expect("workspace version")
+        })
+    }) {
+        return Err(Error(Code::DowngradeRefused));
+    }
+    for (name, path) in [
+        (paths::native_binary_name(), binary),
+        (paths::client_binary_name(), client),
+    ] {
+        if secure::exists(path)? {
+            let actual = digest(path)?;
+            if !previous
+                .as_ref()
+                .and_then(|record| record.binaries.get(name))
+                .is_some_and(|expected| *expected == actual)
+            {
+                return Err(Error(Code::InstallConflict));
+            }
+        } else if previous.is_some() {
+            return Err(Error(Code::InstallConflict));
+        }
+    }
+    for name in [HOST_NAME, LEGACY_HOST_NAME] {
+        let path = manifests.join(format!("{name}.json"));
+        if secure::exists(&path)? {
+            let manifest: Manifest = serde_json::from_slice(&secure::read(&path)?)?;
+            if previous.is_none()
+                || manifest.path != binary
+                || manifest.name != name
+                || manifest.description != "Kwel Local Integration"
+                || manifest.kind != "stdio"
+                || manifest.allowed_origins != [format!("chrome-extension://{EXTENSION_ID}/")]
+            {
+                return Err(Error(Code::InstallConflict));
+            }
+        }
+    }
+    Ok(())
+}
+#[cfg(all(test, target_os = "linux"))]
+mod system_tests {
+    use super::*;
+    use std::os::unix::fs::symlink;
+    #[test]
+    fn dpkg_preflight_preserves_unmanaged_tampered_newer_and_redirected_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap().join("private");
+        secure::ensure_dir(&root).unwrap();
+        let binary = root.join("lib/kwel-native-host");
+        let client = root.join("bin/kwel-bridge");
+        let manifests = root.join("manifests");
+        system_preflight(&binary, &client, &manifests).unwrap();
+        secure::atomic_write(&binary, b"native fixture", true).unwrap();
+        secure::atomic_write(&client, b"client fixture", true).unwrap();
+        assert!(system_preflight(&binary, &client, &manifests).is_err());
+        let mut metadata = Record {
+            product: "kwel-connect".into(),
+            version: VERSION.into(),
+            protocol: 1,
+            binaries: BTreeMap::from([
+                ("kwel-native-host".into(), digest(&binary).unwrap()),
+                ("kwel-bridge".into(), digest(&client).unwrap()),
+            ]),
+        };
+        let record = binary.parent().unwrap().join("release.json");
+        secure::atomic_write(&record, &serde_json::to_vec(&metadata).unwrap(), false).unwrap();
+        system_preflight(&binary, &client, &manifests).unwrap();
+        secure::atomic_write(&client, b"changed fixture", true).unwrap();
+        assert!(system_preflight(&binary, &client, &manifests).is_err());
+        secure::atomic_write(&client, b"client fixture", true).unwrap();
+        metadata.version = "9.0.0".into();
+        secure::atomic_write(&record, &serde_json::to_vec(&metadata).unwrap(), false).unwrap();
+        assert!(matches!(
+            system_preflight(&binary, &client, &manifests),
+            Err(Error(Code::DowngradeRefused))
+        ));
+        metadata.version = VERSION.into();
+        secure::atomic_write(&record, &serde_json::to_vec(&metadata).unwrap(), false).unwrap();
+        secure::ensure_dir(&manifests).unwrap();
+        symlink(
+            root.join("absent"),
+            manifests.join(format!("{HOST_NAME}.json")),
+        )
+        .unwrap();
+        assert!(system_preflight(&binary, &client, &manifests).is_err());
+        assert_eq!(fs::read(client).unwrap(), b"client fixture");
+    }
 }
 
 #[cfg(all(test, windows))]

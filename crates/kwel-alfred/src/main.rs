@@ -4,7 +4,7 @@ use kwel_client::{Client, Operation};
 use kwel_native_host::install::{self, Layout};
 use kwel_native_host::paths::RuntimePaths;
 use kwel_protocol::{Code, Error, LocalRequest, Result};
-#[tokio::main]
+#[tokio::main(worker_threads = 2)]
 async fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     if args.first().is_some_and(|value| value == "open") {

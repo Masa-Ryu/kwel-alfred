@@ -90,6 +90,38 @@ fn newer_host_is_reused_and_partial_newer_update_cannot_be_downgraded() {
     ));
 }
 #[test]
+fn updated_workflow_and_interrupted_install_finish_only_journalled_binaries() {
+    use sha2::{Digest, Sha256};
+    let (_temp, layout, runtime, source) = fixture();
+    install::install(&source, &layout, &runtime, false).unwrap();
+    let mut next: install::Record =
+        serde_json::from_slice(&secure::read(&layout.root.join("install.json")).unwrap()).unwrap();
+    for name in [paths::native_binary_name(), paths::client_binary_name()] {
+        secure::atomic_write(&source.join(name), b"updated executable fixture", true).unwrap();
+        next.binaries.insert(
+            name.into(),
+            secure::hex(&Sha256::digest(fs::read(source.join(name)).unwrap())),
+        );
+    }
+    // Emulate a power loss after the first binary's atomic replacement.
+    secure::atomic_write(
+        &layout.root.join("pending-install.json"),
+        &serde_json::to_vec(&next).unwrap(),
+        false,
+    )
+    .unwrap();
+    secure::copy_executable(&source.join(paths::native_binary_name()), &layout.binary()).unwrap();
+    assert!(install::install(&source, &layout, &runtime, false).unwrap());
+    for name in [paths::native_binary_name(), paths::client_binary_name()] {
+        assert_eq!(
+            fs::read(layout.root.join("bin").join(name)).unwrap(),
+            b"updated executable fixture"
+        );
+    }
+    assert!(!layout.root.join("pending-install.json").exists());
+    assert!(!install::install(&source, &layout, &runtime, false).unwrap());
+}
+#[test]
 fn unrecognized_manifests_and_modified_binaries_are_never_overwritten_or_removed() {
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();

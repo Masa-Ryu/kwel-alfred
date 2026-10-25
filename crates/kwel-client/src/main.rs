@@ -1,6 +1,6 @@
 use kwel_client::{Client, Operation};
 use kwel_protocol::{LocalResponse, Result};
-#[tokio::main]
+#[tokio::main(worker_threads = 2)]
 async fn main() {
     if let Err(error) = run().await {
         let output = LocalResponse::error("", error.0);

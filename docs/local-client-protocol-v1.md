@@ -22,7 +22,7 @@ Example request (identifiers are supplied by the user/client, not copied fixture
 {"v":1,"type":"search","requestId":"request-1","profileId":"<Kwel Profile ID>","query":"Kyoto","limit":20}
 ```
 
-The schema requires a real UUID in place of the placeholder. Each item contains `title`, `url`, `domain`, and an opaque `openRef`. Preserve item order. Open by submitting only `openRef`; arbitrary URLs are rejected. References expire after five minutes, are single use, and cannot move between profiles or connections.
+The schema requires a real UUID in place of the placeholder. Each item contains `title`, `url`, `domain`, and an opaque `openRef`. Preserve item order. Open by submitting only `openRef`; arbitrary URLs are rejected. References expire after five minutes, are single use, and cannot move between profiles or Native Messaging sessions. Search and open use separate local request connections to the same live Native session.
 
 ## Discovering endpoints
 
@@ -34,7 +34,7 @@ The schema requires a real UUID in place of the placeholder. Each item contains 
 
 Unix parents must be owned by the current user with mode 0700; sockets must be owned by that user with mode 0600. Reject symlinks and unsafe ancestors, and verify peer UID. An explicitly configured but unsafe XDG directory is an error, not a fallback.
 
-Windows runtime metadata is under `%LOCALAPPDATA%\Kwel\NativeBridge\runtime`, with a protected DACL granting only the current user's SID. The SID hash is the first 24 lowercase hex characters of SHA-256 over the SID's UTF-8 string. The runtime hash is the first 16 hex characters of SHA-256 over the runtime directory's canonical UTF-8 path. Profile UUIDs are lowercase. `.endpoint` files enumerate candidates; pipe names are derived, never taken from untrusted file contents. Reject remote pipes, verify the server's user SID, and use identification-only SQOS. Servers verify client SID and reject remote clients.
+Windows runtime metadata is under `%LOCALAPPDATA%\Kwel\NativeBridge\runtime`, with a protected DACL granting only the current user's SID. The SID hash is the first 24 lowercase hex characters of SHA-256 over the `ConvertSidToStringSidW` SID's UTF-8 string. The runtime hash is the first 16 hex characters of SHA-256 over the canonical UTF-8 path returned by `GetFinalPathNameByHandleW` with normalized DOS volume paths, including its `\\?\` prefix and returned casing. Profile UUIDs are lowercase. `.endpoint` files enumerate candidates; pipe names are derived, never taken from untrusted file contents. Reject remote pipes, verify the server's user SID, and use identification-only SQOS. Servers read the first size-bounded frame, then verify client SID before processing it, and reject remote clients.
 
 Probe candidate endpoints to check live connections. `kwel-bridge profiles --format json` performs bounded discovery for callers and returns `{"v":1,"profiles":[...]}`. Do not guess another profile if a configured ID is disconnected or conflicted.
 
