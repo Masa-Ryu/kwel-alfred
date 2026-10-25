@@ -14,11 +14,12 @@ import (
 	"com.kwel/alfredbridge/internal/protocol"
 )
 
+// Synthetic fixtures only; no user profile or credential is used.
 const (
 	testExtensionID = "mhablbmgafbdofgaffhdnnknjhafmlin"
-	profileA        = "550e8400-e29b-41d4-a716-446655440000"
-	profileB        = "550e8400-e29b-41d4-a716-446655440001"
-	openRefA        = "111e8400-e29b-41d4-a716-446655440001"
+	profileA        = "00000000-0000-4000-8000-00000000000a"
+	profileB        = "00000000-0000-4000-8000-00000000000b"
+	openRefA        = "00000000-0000-4000-8000-000000000101"
 )
 
 func TestValidNativeOrigin(t *testing.T) {
@@ -93,7 +94,7 @@ func TestSessionCorrelatesConcurrentResponses(t *testing.T) {
 		hasMore := false
 		ref := openRefA
 		if message.RequestID == "one" {
-			ref = "222e8400-e29b-41d4-a716-446655440002"
+			ref = "00000000-0000-4000-8000-000000000102"
 		}
 		session.deliver(protocol.Message{V: 1, Type: protocol.TypeSearchResult, RequestID: message.RequestID, HasMore: &hasMore, Items: []protocol.Item{{Title: message.RequestID, URL: "https://example.com/" + message.RequestID, OpenRef: ref}}})
 	}

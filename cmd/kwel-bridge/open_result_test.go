@@ -31,8 +31,8 @@ func TestOpenActivatesChromeOnlyAfterKwelAcknowledgesTheSelectedResult(t *testin
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { _ = os.RemoveAll(directory) })
-			profileID := "550e8400-e29b-41d4-a716-446655440000"
-			openRef := "111e8400-e29b-41d4-a716-446655440001"
+			profileID := "00000000-0000-4000-8000-00000000000a"
+			openRef := "00000000-0000-4000-8000-000000000101"
 			socketPath := filepath.Join(directory, profileID+".sock")
 			listener, err := net.Listen("unix", socketPath)
 			if err != nil {

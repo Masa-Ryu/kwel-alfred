@@ -8,28 +8,29 @@ import (
 	"com.kwel/alfredbridge/internal/protocol"
 )
 
+// Synthetic fixtures only; these are not real profile IDs or result references.
 const (
-	profileID = "550e8400-e29b-41d4-a716-446655440000"
-	openRef   = "111e8400-e29b-41d4-a716-446655440001"
+	testProfileID = "00000000-0000-4000-8000-00000000000a"
+	testOpenRef   = "00000000-0000-4000-8000-000000000101"
 )
 
 func TestResultsPreserveKwelOrderAndBindOpaqueReferencesToSearchProfile(t *testing.T) {
 	output := Results(protocol.Message{
 		Type: protocol.TypeSearchResult,
 		Items: []protocol.Item{
-			{Title: "Second-ranked", URL: "https://second.example/path", Domain: "second.example", OpenRef: openRef},
-			{Title: "First-ranked", URL: "http://first.example/", OpenRef: "222e8400-e29b-41d4-a716-446655440002"},
+			{Title: "Second-ranked", URL: "https://second.example/path", Domain: "second.example", OpenRef: testOpenRef},
+			{Title: "First-ranked", URL: "http://first.example/", OpenRef: "00000000-0000-4000-8000-000000000102"},
 		},
-	}, profileID)
+	}, testProfileID)
 	if !output.SkipKnowledge || len(output.Items) != 2 || output.Items[0].Title != "Second-ranked" || output.Items[1].Title != "First-ranked" {
 		t.Fatalf("result order changed: %#v", output)
 	}
 	for _, item := range output.Items {
-		if !item.Valid || !protocol.ValidProfileID(item.Arg) || item.Variables["KWEL_RESULT_PROFILE_ID"] != profileID || len(item.Variables) != 1 {
+		if !item.Valid || !protocol.ValidProfileID(item.Arg) || item.Variables["KWEL_RESULT_PROFILE_ID"] != testProfileID || len(item.Variables) != 1 {
 			t.Fatalf("result is not bound to its search profile and opaque reference: %#v", item)
 		}
 	}
-	if output.Items[0].Arg != openRef || output.Items[1].Subtitle != "first.example" {
+	if output.Items[0].Arg != testOpenRef || output.Items[1].Subtitle != "first.example" {
 		t.Fatalf("open reference or display domain changed: %#v", output.Items)
 	}
 	encoded, err := Encode(output)
@@ -54,8 +55,8 @@ func TestResultsPreserveKwelOrderAndBindOpaqueReferencesToSearchProfile(t *testi
 
 func TestEmptyErrorAndConfigurationNoticesAreOneDisabledItem(t *testing.T) {
 	for _, output := range []Output{
-		Results(protocol.Message{Type: protocol.TypeSearchResult}, profileID),
-		Results(protocol.Message{Type: protocol.TypeError, Text: "Search unavailable."}, profileID),
+		Results(protocol.Message{Type: protocol.TypeSearchResult}, testProfileID),
+		Results(protocol.Message{Type: protocol.TypeError, Text: "Search unavailable."}, testProfileID),
 		Notice("No connection."),
 		ProfileConfigurationRequired(),
 	} {
@@ -71,9 +72,9 @@ func TestEmptyErrorAndConfigurationNoticesAreOneDisabledItem(t *testing.T) {
 func TestTwentySearchResultsRemainInKwelOrder(t *testing.T) {
 	results := make([]protocol.Item, 20)
 	for index := range results {
-		results[index] = protocol.Item{Title: fmt.Sprintf("Result %02d", 20-index), URL: "https://example.com/", Domain: "example.com", OpenRef: fmt.Sprintf("333e8400-e29b-41d4-a716-%012d", index)}
+		results[index] = protocol.Item{Title: fmt.Sprintf("Result %02d", 20-index), URL: "https://example.com/", Domain: "example.com", OpenRef: fmt.Sprintf("00000000-0000-4000-8000-%012d", index)}
 	}
-	output := Results(protocol.Message{Type: protocol.TypeSearchResult, Items: results}, profileID)
+	output := Results(protocol.Message{Type: protocol.TypeSearchResult, Items: results}, testProfileID)
 	if len(output.Items) != 20 {
 		t.Fatalf("got %d results, want 20", len(output.Items))
 	}

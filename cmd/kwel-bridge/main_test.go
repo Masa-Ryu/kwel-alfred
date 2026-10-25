@@ -59,16 +59,16 @@ func TestSearchValidatesProfileConfigurationBeforeHostSetup(t *testing.T) {
 	previousSupport := kwelClientSupport
 	kwelClientSupport = "false"
 	defer func() { kwelClientSupport = previousSupport }()
-	for _, value := range []string{"", " ", "work", "mhablbmgafbdofgaffhdnnknjhafmlin", "00000000-0000-0000-0000-000000000000", "550e8400-e29b-41d4-a716-446655440000/../other"} {
+	for _, value := range []string{"", " ", "work", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "00000000-0000-0000-0000-000000000000", "00000000-0000-4000-8000-00000000000a/../other"} {
 		t.Run(value, func(t *testing.T) {
-			output := captureSearch(t, []string{"--profile-id", value, "--query", "github actions"})
+			output := captureSearch(t, []string{"--profile-id", value, "--query", "Kyoto"})
 			if len(output.Items) != 1 || output.Items[0].Title != "Configure the Kwel Profile ID" || output.Items[0].Valid {
 				t.Fatalf("invalid configuration reached search: %#v", output)
 			}
 		})
 	}
-	for _, value := range []string{"550e8400-e29b-41d4-a716-446655440000", " 550E8400-E29B-41D4-A716-446655440000 "} {
-		output := captureSearch(t, []string{"--profile-id", value, "--query", "日本語 github actions"})
+	for _, value := range []string{"00000000-0000-4000-8000-00000000000a", " 00000000-0000-4000-8000-00000000000A "} {
+		output := captureSearch(t, []string{"--profile-id", value, "--query", "Café Kyoto"})
 		if len(output.Items) != 1 || output.Items[0].Title != "This Kwel extension build does not support Alfred integration." {
 			t.Fatalf("valid UUID configuration was rejected: %#v", output)
 		}
@@ -81,8 +81,8 @@ func TestSearchProfileChangesUseOnlyConfiguredSocketAndBindResults(t *testing.T)
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(directory) })
-	profileA := "550e8400-e29b-41d4-a716-446655440000"
-	profileB := "550e8400-e29b-41d4-a716-446655440001"
+	profileA := "00000000-0000-4000-8000-00000000000a"
+	profileB := "00000000-0000-4000-8000-00000000000b"
 	requestsA := mockConfiguredProfile(t, directory, profileA, "Result A")
 	requestsB := mockConfiguredProfile(t, directory, profileB, "Result B")
 	for _, test := range []struct {
@@ -91,8 +91,8 @@ func TestSearchProfileChangesUseOnlyConfiguredSocketAndBindResults(t *testing.T)
 		title     string
 		requests  <-chan protocol.Message
 	}{
-		{profileA, "github actions", "Result A", requestsA},
-		{profileB, "日本語検索", "Result B", requestsB},
+		{profileA, "Kyoto", "Result A", requestsA},
+		{profileB, "Café Kyoto", "Result B", requestsB},
 	} {
 		output := searchProfile(directory, test.profileID, test.query, 20)
 		if len(output.Items) != 1 || output.Items[0].Title != test.title || output.Items[0].Variables["KWEL_RESULT_PROFILE_ID"] != test.profileID || !output.Items[0].Valid {
@@ -101,13 +101,13 @@ func TestSearchProfileChangesUseOnlyConfiguredSocketAndBindResults(t *testing.T)
 		select {
 		case request := <-test.requests:
 			if request.ProfileID != test.profileID || request.Query != test.query || request.Limit != 20 {
-				t.Fatalf("profile, Japanese query, or limit changed: %#v", request)
+				t.Fatalf("profile, Unicode query, or limit changed: %#v", request)
 			}
 		case <-time.After(time.Second):
 			t.Fatal("request did not reach configured socket")
 		}
 	}
-	output := searchProfile(directory, "550e8400-e29b-41d4-a716-446655440002", "query", 20)
+	output := searchProfile(directory, "00000000-0000-4000-8000-00000000000c", "query", 20)
 	if len(output.Items) != 1 || output.Items[0].Valid || output.Items[0].Arg != "" {
 		t.Fatalf("unconnected ID produced actionable results: %#v", output)
 	}
@@ -169,7 +169,7 @@ func mockConfiguredProfile(t *testing.T, directory, profileID, title string) <-c
 				if decodeErr == nil {
 					requests <- request
 					hasMore := false
-					_ = protocol.WriteFrame(connection, protocol.Message{V: 1, Type: protocol.TypeSearchResult, RequestID: request.RequestID, HasMore: &hasMore, Items: []protocol.Item{{Title: title, URL: "https://example.com/", OpenRef: "111e8400-e29b-41d4-a716-446655440001"}}})
+					_ = protocol.WriteFrame(connection, protocol.Message{V: 1, Type: protocol.TypeSearchResult, RequestID: request.RequestID, HasMore: &hasMore, Items: []protocol.Item{{Title: title, URL: "https://example.com/", OpenRef: "00000000-0000-4000-8000-000000000101"}}})
 				}
 			}
 			_ = connection.Close()
@@ -187,11 +187,11 @@ func mockConfiguredProfile(t *testing.T, directory, profileID, title string) <-c
 }
 
 func TestOpenRequiresResultProfileAndReferenceWithoutConfigurationFallback(t *testing.T) {
-	t.Setenv("KWEL_PROFILE_ID", "550e8400-e29b-41d4-a716-446655440001")
+	t.Setenv("KWEL_PROFILE_ID", "00000000-0000-4000-8000-00000000000b")
 	for _, args := range [][]string{
-		{"--ref", "111e8400-e29b-41d4-a716-446655440001"},
-		{"--profile-id", "550e8400-e29b-41d4-a716-446655440000"},
-		{"--profile-id", "550e8400-e29b-41d4-a716-446655440000", "--ref", "https://example.com/"},
+		{"--ref", "00000000-0000-4000-8000-000000000101"},
+		{"--profile-id", "00000000-0000-4000-8000-00000000000a"},
+		{"--profile-id", "00000000-0000-4000-8000-00000000000a", "--ref", "https://example.com/"},
 	} {
 		if err := openResult(args); err == nil || err.Error() != "invalid Kwel result" {
 			t.Fatalf("invalid result binding was not rejected before connection: %v", err)

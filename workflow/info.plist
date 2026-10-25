@@ -136,9 +136,13 @@
 	<key>readme</key>
 	<string>Search your Chrome browsing history from Alfred using Kwel.
 
-Configure Kwel Profile ID below using the ID copied from Kwel Settings → Alfred Integration. Add Search Kwel under Alfred Preferences → Features → Default Results → Setup fallback searches. Type a normal query and choose Search Kwel. Return opens the selected result in the same Chrome profile that searched it.
+1. Enable Alfred Integration in Kwel Settings and copy the Profile ID.
+2. Paste it into Kwel Profile ID below.
+3. Add Search Kwel in Alfred Preferences → Features → Default Results → Setup fallback searches.
 
-The first explicit Search Kwel invocation registers the bundled Native Messaging host if needed; import alone does not install it. No keyword, hotkey, profile chooser, or terminal command is required.</string>
+Open Alfred, type Kyoto, choose Search Kwel, and press Return. Select a page and press Return to open it in Chrome.
+
+The first Search Kwel invocation registers the Native Messaging host. If Kwel stays disconnected, turn Alfred Integration off and on, then retry.</string>
 	<key>uidata</key>
 	<dict>
 		<key>5B612B92-409B-4AC4-9F39-7E0AE18A8991</key>
@@ -164,7 +168,7 @@ The first explicit Search Kwel invocation registers the bundled Native Messaging
 		</dict>
 	</dict>
 	<key>version</key>
-	<string>0.5.2-dev</string>
+	<string>1.00</string>
 	<key>webaddress</key>
 	<string>https://kwel.ryu.zone</string>
 	<key>userconfigurationconfig</key>

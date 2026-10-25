@@ -22,7 +22,7 @@ import (
 
 var (
 	allowedExtensionID = ""
-	version            = "0.5.2-dev"
+	version            = "1.00"
 	kwelClientSupport  = "false"
 )
 

@@ -15,14 +15,15 @@ chmod 755 "$TEMP_DIR/workflow/kwel-bridge" "$TEMP_DIR/workflow/scripts/"*.sh
 
 SENTINEL="$TEMP_DIR/command-was-not-run"
 QUERY="日本語 'single' \"double\" spaces & punctuation ; \$(touch $SENTINEL)"
-PROFILE_A="550e8400-e29b-41d4-a716-446655440000"
-PROFILE_B="550e8400-e29b-41d4-a716-446655440001"
-OPEN_REF="111e8400-e29b-41d4-a716-446655440001"
+# Synthetic UUID-shaped fixtures; no user profiles or credentials.
+TEST_PROFILE_A="00000000-0000-4000-8000-00000000000a"
+TEST_PROFILE_B="00000000-0000-4000-8000-00000000000b"
+TEST_OPEN_REF="00000000-0000-4000-8000-000000000101"
 CAPTURE="$TEMP_DIR/argv.bin"
 
 # A configuration change takes effect on the very next search. Empty or invalid
 # configuration is forwarded unchanged so the CLI can reject it before setup.
-for CONFIGURED_PROFILE_ID in "$PROFILE_A" "$PROFILE_B" "" "invalid-id"; do
+for CONFIGURED_PROFILE_ID in "$TEST_PROFILE_A" "$TEST_PROFILE_B" "" "invalid-id"; do
   : > "$CAPTURE"
   KWEL_CAPTURE="$CAPTURE" KWEL_PROFILE_ID="$CONFIGURED_PROFILE_ID" bash "$TEMP_DIR/workflow/scripts/search.sh" "$QUERY" >"$TEMP_DIR/output.json"
   python3 - "$CAPTURE" "$QUERY" "$CONFIGURED_PROFILE_ID" <<'PY'
@@ -36,10 +37,10 @@ done
 
 # A result found in A must still open in A after configuration changes to B.
 # A missing result binding must never fall back to the currently configured B.
-for RESULT_PROFILE_ID in "$PROFILE_A" ""; do
+for RESULT_PROFILE_ID in "$TEST_PROFILE_A" ""; do
   : > "$CAPTURE"
-  KWEL_CAPTURE="$CAPTURE" KWEL_PROFILE_ID="$PROFILE_B" KWEL_RESULT_PROFILE_ID="$RESULT_PROFILE_ID" bash "$TEMP_DIR/workflow/scripts/open-result.sh" "$OPEN_REF" >"$TEMP_DIR/output.json"
-  python3 - "$CAPTURE" "$RESULT_PROFILE_ID" "$OPEN_REF" <<'PY'
+  KWEL_CAPTURE="$CAPTURE" KWEL_PROFILE_ID="$TEST_PROFILE_B" KWEL_RESULT_PROFILE_ID="$RESULT_PROFILE_ID" bash "$TEMP_DIR/workflow/scripts/open-result.sh" "$TEST_OPEN_REF" >"$TEMP_DIR/output.json"
+  python3 - "$CAPTURE" "$RESULT_PROFILE_ID" "$TEST_OPEN_REF" <<'PY'
 import sys
 from pathlib import Path
 actual = Path(sys.argv[1]).read_bytes().split(b"\0")[:-1]
@@ -49,4 +50,4 @@ PY
 done
 
 test ! -e "$SENTINEL"
-printf '%s\n' 'Configured Profile ID changes, result-bound profile opening, and Japanese/shell-sensitive argv are preserved safely.'
+printf '%s\n' 'Configured Profile ID changes, result-bound profile opening, and Unicode/shell-sensitive argv are preserved safely.'

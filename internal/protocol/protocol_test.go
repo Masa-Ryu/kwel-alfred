@@ -9,9 +9,10 @@ import (
 	"testing"
 )
 
+// Synthetic fixtures only; no user profile or credential is used.
 const (
-	profileIDA = "550e8400-e29b-41d4-a716-446655440000"
-	openRefA   = "111e8400-e29b-41d4-a716-446655440001"
+	profileIDA = "00000000-0000-4000-8000-00000000000a"
+	openRefA   = "00000000-0000-4000-8000-000000000101"
 )
 
 func TestFrameRoundTripAndLimits(t *testing.T) {

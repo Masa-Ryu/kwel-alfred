@@ -8,7 +8,8 @@ import (
 	"testing"
 )
 
-const extensionIDForTest = "mhablbmgafbdofgaffhdnnknjhafmlin"
+// Synthetic extension origins for isolated temporary installation fixtures.
+const extensionIDForTest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 func TestSetupIsIdempotentAndRegistersPublishedOrigin(t *testing.T) {
 	home := t.TempDir()
@@ -45,7 +46,7 @@ func TestSetupIsIdempotentAndRegistersPublishedOrigin(t *testing.T) {
 	}
 	// A Workflow build for the installed Kwel extension must replace the old
 	// owned registration's origin without retaining access for the old build.
-	updatedExtensionID := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	updatedExtensionID := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	if err := Repair(source, home, updatedExtensionID); err != nil {
 		t.Fatalf("could not update the owned host origin: %v", err)
 	}

@@ -1,6 +1,6 @@
 {
-  "version": "0.5.2-dev",
-  "chromeExtensionId": "ejpjomhcaigefpiedjcnamclmgpklpok",
+  "version": "1.00",
+  "chromeExtensionId": "mhablbmgafbdofgaffhdnnknjhafmlin",
   "kwelClientSupported": true,
-  "buildChannel": "development-candidate"
+  "buildChannel": "production"
 }

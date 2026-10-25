@@ -18,10 +18,10 @@ func TestMissingConfiguredProfileDoesNotUseConnectedProfiles(t *testing.T) {
 	var outputA, outputB bytes.Buffer
 	serveRoutingProfile(t, directory, newTestSession(&outputA, profileA))
 	serveRoutingProfile(t, directory, newTestSession(&outputB, profileB))
-	missingID := "550e8400-e29b-41d4-a716-446655440002"
+	missingID := "00000000-0000-4000-8000-00000000000c"
 	missingSocket := filepath.Join(directory, missingID+".sock")
 
-	_, err := Search(missingSocket, missingID, "日本語 github actions", 20)
+	_, err := Search(missingSocket, missingID, "Café Kyoto", 20)
 	requireRoutingError(t, err, protocol.CodeDisconnected)
 	if err.Error() != "The configured Kwel profile is not connected. Check Alfred Integration in that Chrome profile." {
 		t.Fatalf("missing connection was reported as an in-flight disconnect: %v", err)
@@ -38,7 +38,7 @@ func TestWrongProfileSocketRejectsSearchAndOpenBeforeNativeMessaging(t *testing.
 	var nativeOutput bytes.Buffer
 	path := serveRoutingProfile(t, directory, newTestSession(&nativeOutput, profileA))
 
-	_, err := Search(path, profileB, "github actions", 20)
+	_, err := Search(path, profileB, "Kyoto", 20)
 	requireRoutingError(t, err, protocol.CodeInvalidRequest)
 	err = Open(path, profileB, openRefA)
 	requireRoutingError(t, err, protocol.CodeInvalidRequest)
@@ -76,7 +76,7 @@ func TestDisconnectedConfiguredProfileDoesNotUseRemainingConnection(t *testing.T
 		return errors.Is(err, os.ErrNotExist)
 	})
 
-	_, err := Search(pathA, profileA, "github actions", 20)
+	_, err := Search(pathA, profileA, "Kyoto", 20)
 	requireRoutingError(t, err, protocol.CodeDisconnected)
 	err = Open(pathA, profileA, openRefA)
 	requireRoutingError(t, err, protocol.CodeDisconnected)
@@ -167,7 +167,7 @@ func TestSearchAndOpenStayBoundToEachConnectedProfile(t *testing.T) {
 		path := serveRoutingProfile(t, directory, session)
 		ref := openRefA
 		if index == 1 {
-			ref = "222e8400-e29b-41d4-a716-446655440002"
+			ref = "00000000-0000-4000-8000-000000000102"
 		}
 		profiles = append(profiles, connectedProfile{id: id, ref: ref, path: path, session: session, reader: reader})
 		t.Cleanup(func() { _ = reader.Close() })
@@ -178,14 +178,14 @@ func TestSearchAndOpenStayBoundToEachConnectedProfile(t *testing.T) {
 		t.Run(profile.id, func(t *testing.T) {
 			searchFinished := make(chan error, 1)
 			go func() {
-				result, err := Search(profile.path, profile.id, "日本語 github actions", 20)
+				result, err := Search(profile.path, profile.id, "Café Kyoto", 20)
 				if err == nil && (len(result.Items) != 1 || result.Items[0].OpenRef != profile.ref) {
 					err = errors.New("search returned a reference from the wrong profile")
 				}
 				searchFinished <- err
 			}()
 			request := readRoutingNativeMessage(t, profile.reader)
-			if request.Type != protocol.TypeSearch || request.Query != "日本語 github actions" || request.Limit != 20 {
+			if request.Type != protocol.TypeSearch || request.Query != "Café Kyoto" || request.Limit != 20 {
 				t.Fatalf("wrong search reached profile: %#v", request)
 			}
 			profile.session.deliver(routingSearchResponse(request.RequestID, "Result for "+profile.id, profile.ref))
