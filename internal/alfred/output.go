@@ -2,6 +2,7 @@ package alfred
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -28,7 +29,7 @@ func Results(message protocol.Message, profileID string) Output {
 	if len(message.Items) == 0 {
 		return Notice("No matching Kwel pages")
 	}
-	items := make([]Item, 0, len(message.Items))
+	items := make([]Item, 0, len(message.Items)+1)
 	for _, result := range message.Items {
 		domain := strings.TrimSpace(result.Domain)
 		if domain == "" {
@@ -44,6 +45,12 @@ func Results(message protocol.Message, profileID string) Output {
 			Variables: map[string]string{
 				"KWEL_RESULT_PROFILE_ID": profileID,
 			},
+		})
+	}
+	if message.HasMore != nil && *message.HasMore {
+		items = append(items, Item{
+			Title: fmt.Sprintf("Showing the first %d results. Refine your search for more.", len(message.Items)),
+			Valid: false,
 		})
 	}
 	return Output{SkipKnowledge: true, Items: items}

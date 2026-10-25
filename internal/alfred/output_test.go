@@ -84,3 +84,29 @@ func TestTwentySearchResultsRemainInKwelOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestHasMoreAddsDisabledGuidanceAfterRankedResults(t *testing.T) {
+	results := make([]protocol.Item, 20)
+	for index := range results {
+		results[index] = protocol.Item{
+			Title:   fmt.Sprintf("Result %02d", index+1),
+			URL:     "https://example.com/",
+			OpenRef: fmt.Sprintf("00000000-0000-4000-8000-%012d", index+1),
+		}
+	}
+	hasMore := true
+	output := Results(protocol.Message{Type: protocol.TypeSearchResult, Items: results, HasMore: &hasMore}, testProfileID)
+	if len(output.Items) != 21 {
+		t.Fatalf("got %d items, want 20 results and one guidance item", len(output.Items))
+	}
+	for index, result := range results {
+		item := output.Items[index]
+		if item.Title != result.Title || item.Arg != result.OpenRef || !item.Valid {
+			t.Fatalf("ranked result %d changed: %#v", index, item)
+		}
+	}
+	guidance := output.Items[20]
+	if guidance.Title != "Showing the first 20 results. Refine your search for more." || guidance.Valid || guidance.Arg != "" || len(guidance.Variables) != 0 {
+		t.Fatalf("hasMore guidance should be disabled and follow all search results: %#v", guidance)
+	}
+}

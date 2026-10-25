@@ -48,15 +48,17 @@ assert field["config"]["trim"] is True
 assert not info.get("variables", {}).get("KWEL_PROFILE_ID"), "Do not ship a configured Profile ID."
 
 objects = info["objects"]
-assert len(objects) == 3
+assert len(objects) == 4
 assert {obj["type"] for obj in objects} == {
     "alfred.workflow.trigger.fallback",
     "alfred.workflow.input.scriptfilter",
     "alfred.workflow.action.script",
+    "alfred.workflow.output.notification",
 }
 fallback = next(obj for obj in objects if obj["type"] == "alfred.workflow.trigger.fallback")
 search = next(obj for obj in objects if obj["type"] == "alfred.workflow.input.scriptfilter")
 open_action = next(obj for obj in objects if obj["type"] == "alfred.workflow.action.script")
+notification = next(obj for obj in objects if obj["type"] == "alfred.workflow.output.notification")
 assert fallback["config"]["text"] == "Search Kwel"
 assert search["config"].get("keyword", "") == ""
 assert search["config"]["alfredfiltersresults"] is False
@@ -69,12 +71,14 @@ assert search["config"]["type"] == 8  # Execute the external file, not the empty
 assert open_action["config"]["scriptfile"] == "./scripts/open-result.sh"
 assert open_action["config"]["type"] == 8
 assert open_action["config"]["scriptargtype"] == 1  # Selected openRef is passed through argv.
+assert notification["config"]["text"] == "Could not open this result. Search again."
+assert notification["config"]["onlyshowifquerypopulated"] is True
 for forbidden in ["repair", "doctor", "uninstall", "status", "profile-chooser", "select-profile", "change-profile", "discover"]:
     assert forbidden not in str(objects).lower(), forbidden
 
 connections = info["connections"]
-assert set(connections) == {fallback["uid"], search["uid"]}
-for source, destination in [(fallback, search), (search, open_action)]:
+assert set(connections) == {fallback["uid"], search["uid"], open_action["uid"]}
+for source, destination in [(fallback, search), (search, open_action), (open_action, notification)]:
     edges = connections[source["uid"]]
     assert len(edges) == 1
     assert edges[0]["destinationuid"] == destination["uid"]
@@ -92,7 +96,8 @@ assert 'profile_id="${KWEL_PROFILE_ID:-}"' in search_script
 assert 'exec ./kwel-bridge search --profile-id "$profile_id" --query "$query" --limit 20 --format alfred' in search_script
 assert 'profile_id="${KWEL_RESULT_PROFILE_ID:-}"' in open_script
 assert 'open_ref="${1-}"' in open_script
-assert 'exec ./kwel-bridge open --profile-id "$profile_id" --ref "$open_ref"' in open_script
+assert './kwel-bridge open --profile-id "$profile_id" --ref "$open_ref" >/dev/null' in open_script
+assert "Could not open this result. Search again." in open_script
 assert "KWEL_PROFILE_ID" not in open_script
 assert all((root / name).is_file() for name in ["kwel-bridge", "icon.png", "README.md", "LICENSE"])
 icon = (root / "icon.png").read_bytes()

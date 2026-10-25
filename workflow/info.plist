@@ -34,6 +34,19 @@
 				<false/>
 			</dict>
 		</array>
+		<key>B6A8DC42-4E5B-421B-AD27-BD8772A5EF34</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>C9E4A4A9-523B-4BA8-A82E-49CD8D60B7AC</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Kwel</string>
@@ -132,6 +145,27 @@
 			<key>version</key>
 			<integer>2</integer>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>lastpathcomponent</key>
+				<false/>
+				<key>onlyshowifquerypopulated</key>
+				<true/>
+				<key>removeextension</key>
+				<false/>
+				<key>text</key>
+				<string>Could not open this result. Search again.</string>
+				<key>title</key>
+				<string>Kwel</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.notification</string>
+			<key>uid</key>
+			<string>C9E4A4A9-523B-4BA8-A82E-49CD8D60B7AC</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
 	</array>
 	<key>readme</key>
 	<string>Search your Chrome browsing history from Alfred using Kwel.
@@ -163,6 +197,13 @@ The first Search Kwel invocation registers the Native Messaging host. If Kwel st
 		<dict>
 			<key>xpos</key>
 			<integer>580</integer>
+			<key>ypos</key>
+			<integer>180</integer>
+		</dict>
+		<key>C9E4A4A9-523B-4BA8-A82E-49CD8D60B7AC</key>
+		<dict>
+			<key>xpos</key>
+			<integer>830</integer>
 			<key>ypos</key>
 			<integer>180</integer>
 		</dict>
