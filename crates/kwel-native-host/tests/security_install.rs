@@ -185,12 +185,31 @@ async fn in_use_host_is_never_deleted() {
 #[tokio::test]
 async fn socket_permissions_stale_recovery_and_replacement_ownership() {
     use std::os::unix::fs::PermissionsExt;
+    if let Some(path) = std::env::var_os("KWEL_SOCKET_EXIT_FIXTURE") {
+        let _socket = std::os::unix::net::UnixListener::bind(path).unwrap();
+        // Simulate process death, leaving the socket pathname behind.
+        std::process::exit(0);
+    }
     let temp = support::directory();
     let runtime = RuntimePaths::at(temp.path().canonicalize().unwrap()).unwrap();
     let path = runtime
         .endpoint("00000000-0000-4000-8000-00000000000a", false)
         .unwrap();
-    drop(std::os::unix::net::UnixListener::bind(&path).unwrap());
+    // Other tests concurrently spawn ditto. A socket briefly present in this
+    // process can be inherited across fork until exec, even with CLOEXEC. Make
+    // the stale socket in a dedicated child that never forks after binding;
+    // wait for process exit instead of sleeping or weakening the Busy check.
+    assert!(
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "socket_permissions_stale_recovery_and_replacement_ownership"
+            ])
+            .env("KWEL_SOCKET_EXIT_FIXTURE", &path)
+            .status()
+            .unwrap()
+            .success()
+    );
     fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
     let listener = ipc::Listener::bind(&path).unwrap();
     assert_eq!(
