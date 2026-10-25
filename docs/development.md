@@ -29,7 +29,7 @@ The Darwin filesystem implementation retains `ditto --rsrc --extattr --acl` to p
 
 ## CI and releases
 
-Both workflows use the **self-hosted Linux runner with labels `self-hosted, n100`**, inside an Ubuntu 24.04 container. The runner needs Docker. Test CI runs for pull requests, pushes to main, and manual dispatch with read-only repository permissions and no configured Secrets.
+Both workflows run directly on the **self-hosted Linux runner with labels `self-hosted, n100`**. The runner needs Git, curl, GCC, Python 3, tar, sha256sum, apt-get, and dpkg-deb. Go and resvg use isolated temporary directories. Missing LLVM 18 and GitHub CLI packages are downloaded from the runner's signed apt repositories and extracted into the same temporary directory without a system installation. Test CI runs for pull requests, pushes to main, and manual dispatch with read-only repository permissions and no configured Secrets.
 
 After merging, create and push a tag matching `config/distribution.json` and `workflow/info.plist`; version `1.00` requires tag `v1.00`. `scripts/check-release-version.py` rejects a mismatch or a non-production distribution.
 

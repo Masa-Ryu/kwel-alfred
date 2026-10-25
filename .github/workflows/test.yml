@@ -16,20 +16,21 @@ concurrency:
 jobs:
   test:
     runs-on: [self-hosted, n100]
-    container: ubuntu:24.04
     timeout-minutes: 30
     defaults:
       run:
         shell: bash
     env:
-      LLVM_LIPO: llvm-lipo-18
       CGO_ENABLED: '1'
       GOTOOLCHAIN: local
     steps:
-      - name: Install Linux build dependencies
+      - name: Verify Linux build dependencies
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends ca-certificates curl git gcc libc6-dev python3 llvm-18
+          test "$(uname -s)" = Linux
+          cat /etc/os-release
+          for tool in curl git gcc python3 tar sha256sum apt-get dpkg-deb; do
+            command -v "$tool"
+          done
       - name: Check out the exact workflow commit
         run: |
           source_dir="$(mktemp -d "$RUNNER_TEMP/kwel-source.XXXXXX")"

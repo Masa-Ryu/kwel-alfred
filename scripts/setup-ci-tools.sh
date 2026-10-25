@@ -21,3 +21,42 @@ tar -xzf "$TOOL_DIR/resvg.tar.gz" -C "$TOOL_DIR" resvg
 "$TOOL_DIR/resvg" --version
 printf '%s\n' "$TOOL_DIR/go/bin" "$TOOL_DIR" >> "$GITHUB_PATH"
 printf 'GOCACHE=%s\nGOMODCACHE=%s\n' "$TOOL_DIR/go-cache" "$TOOL_DIR/go-modcache" >> "$GITHUB_ENV"
+
+# Extract missing apt tools into this job's temporary directory. apt verifies
+# repository signatures and package hashes; no system package or Docker access
+# is needed. The runner's compiler and Python remain required prerequisites.
+packages=()
+if command -v llvm-lipo >/dev/null; then
+  LIPO_PATH="$(command -v llvm-lipo)"
+elif command -v llvm-lipo-18 >/dev/null; then
+  LIPO_PATH="$(command -v llvm-lipo-18)"
+else
+  packages+=(llvm-18 libllvm18)
+  LIPO_PATH="$TOOL_DIR/llvm-lipo"
+fi
+if [[ "${KWEL_RELEASE:-0}" == 1 ]] && ! command -v gh >/dev/null; then
+  packages+=(gh)
+fi
+if (( ${#packages[@]} )); then
+  mkdir -p "$TOOL_DIR/apt-lists/partial" "$TOOL_DIR/apt-cache/archives/partial" "$TOOL_DIR/debs"
+  apt_options=(-o "Dir::State::lists=$TOOL_DIR/apt-lists" -o "Dir::Cache=$TOOL_DIR/apt-cache")
+  apt-get "${apt_options[@]}" update
+  (cd "$TOOL_DIR/debs" && apt-get "${apt_options[@]}" download "${packages[@]}")
+  for package in "$TOOL_DIR/debs/"*.deb; do
+    dpkg-deb --extract "$package" "$TOOL_DIR/apt-tools"
+  done
+fi
+if [[ "$LIPO_PATH" == "$TOOL_DIR/llvm-lipo" ]]; then
+  cat > "$LIPO_PATH" <<'LIPO'
+#!/bin/sh
+TOOL_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+LD_LIBRARY_PATH="$TOOL_DIR/apt-tools/usr/lib/x86_64-linux-gnu:$TOOL_DIR/apt-tools/usr/lib/llvm-18/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  exec "$TOOL_DIR/apt-tools/usr/bin/llvm-lipo-18" "$@"
+LIPO
+  chmod 755 "$LIPO_PATH"
+fi
+"$LIPO_PATH" -version
+printf 'LLVM_LIPO=%s\n' "$LIPO_PATH" >> "$GITHUB_ENV"
+if [[ -d "$TOOL_DIR/apt-tools/usr/bin" ]]; then
+  printf '%s\n' "$TOOL_DIR/apt-tools/usr/bin" >> "$GITHUB_PATH"
+fi
