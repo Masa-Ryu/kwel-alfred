@@ -31,7 +31,9 @@
             },
             "profileId": {
               "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+              "minLength": 36,
+              "maxLength": 36
             }
           },
           "required": [
@@ -39,7 +41,8 @@
             "type",
             "requestId",
             "profileId"
-          ]
+          ],
+          "x-direction": "client-to-host"
         },
         {
           "type": "object",
@@ -59,7 +62,9 @@
             },
             "profileId": {
               "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+              "minLength": 36,
+              "maxLength": 36
             },
             "query": {
               "type": "string",
@@ -79,7 +84,8 @@
             "profileId",
             "query",
             "limit"
-          ]
+          ],
+          "x-direction": "client-to-host"
         },
         {
           "type": "object",
@@ -99,11 +105,15 @@
             },
             "profileId": {
               "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+              "minLength": 36,
+              "maxLength": 36
             },
             "openRef": {
               "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+              "minLength": 36,
+              "maxLength": 36
             }
           },
           "required": [
@@ -112,7 +122,8 @@
             "requestId",
             "profileId",
             "openRef"
-          ]
+          ],
+          "x-direction": "client-to-host"
         }
       ]
     },
@@ -136,18 +147,23 @@
             },
             "profileId": {
               "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+              "minLength": 36,
+              "maxLength": 36
             },
             "profileLabel": {
               "type": "string",
               "maxLength": 64,
               "x-utf16-maxLength": 64,
-              "pattern": "^[^\\r\\n]*$"
+              "not": {
+                "pattern": "[\\r\\n]"
+              }
             },
             "hostVersion": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 100
+              "maxLength": 100,
+              "description": "Nonempty installed Host version, at most 100 UTF-8 bytes. Standard maxLength alone counts code points."
             }
           },
           "required": [
@@ -157,7 +173,8 @@
             "profileId",
             "profileLabel",
             "hostVersion"
-          ]
+          ],
+          "x-direction": "host-to-client"
         },
         {
           "type": "object",
@@ -190,7 +207,9 @@
                 "properties": {
                   "title": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "pattern": "[^\\u0009-\\u000d\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                    "description": "Contains at least one character outside Unicode White_Space, as checked by Rust str::trim."
                   },
                   "url": {
                     "type": "string",
@@ -202,7 +221,9 @@
                   },
                   "openRef": {
                     "type": "string",
-                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+                    "minLength": 36,
+                    "maxLength": 36
                   }
                 }
               }
@@ -217,7 +238,8 @@
             "requestId",
             "items",
             "hasMore"
-          ]
+          ],
+          "x-direction": "host-to-client"
         },
         {
           "type": "object",
@@ -244,7 +266,8 @@
             "type",
             "requestId",
             "ok"
-          ]
+          ],
+          "x-direction": "host-to-client"
         },
         {
           "type": "object",
@@ -258,7 +281,7 @@
             },
             "requestId": {
               "type": "string",
-              "maxLength": 100
+              "description": "Echoes a decoded request ID even if request validation failed. Empty string when the request could not be decoded. Never null. The transport response-byte limit still applies; this is not the valid requestId type."
             },
             "code": {
               "enum": [
@@ -291,9 +314,12 @@
             "requestId",
             "code",
             "message"
-          ]
+          ],
+          "x-direction": "host-to-client"
         }
       ]
     }
-  }
+  },
+  "description": "Public Local Client requests and responses, independent of Native Messaging and Alfred. Each message type is a closed object. Requests require profileId and search requires an explicit limit; no Native defaults are inherited.",
+  "$comment": "Use the request or response branch for the appropriate direction. default is an annotation, not value insertion. x-utf16-maxLength is normative for valid request IDs, labels and queries but is not enforced by standard validators. Transport syntax/size, URL semantics, UTF-8 hostVersion bytes and request/session correlation require implementation checks; see local-client-protocol-v1.md."
 }

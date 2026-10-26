@@ -49,7 +49,9 @@
       "properties": {
         "title": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "pattern": "[^\\u0009-\\u000d\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+          "description": "Contains at least one character outside Unicode White_Space, as checked by Rust str::trim."
         },
         "url": {
           "type": "string",
@@ -321,5 +323,5 @@
       ]
     }
   ],
-  "$comment": " Native strings contain Unicode scalar values; lone surrogate escapes are rejected. Enforce x-utf16-maxLength in addition to standard maxLength."
+  "$comment": "This Draft 2020-12 Schema and native-messaging-v1.md specify the Native wire contract; the Native65 JSON is conformance data. default does not modify instances. Standard validators ignore x-utf16-maxLength and x-direction; implementations must enforce UTF-16 bounds, well-formed Unicode, transport syntax/size, URL semantics, direction and session state separately."
 }

@@ -149,11 +149,40 @@ fn utf16_boundaries_include_bmp_astral_and_mixed_sequences() {
 
 #[test]
 fn current_kwel_native_only_fixture_is_accepted_without_local_routing() {
+    let schema: Value = serde_json::from_str(include_str!(
+        "../../../docs/schemas/native-messaging-v1.schema.json"
+    ))
+    .unwrap();
+    jsonschema::draft202012::meta::validate(&schema).unwrap();
+    let validator = jsonschema::draft202012::new(&schema).unwrap();
+    let mut standard_only = 0;
+    let mut check_schema = |name: &str, value: &Value, expected: bool| {
+        // Standard maxLength counts code points, not UTF-16 units. These
+        // three cases must still fail Rust validation; no fixture is changed.
+        let utf16_only = matches!(
+            name,
+            "query 101 emoji" | "request ID 51 emoji" | "label 33 emoji"
+        );
+        if utf16_only {
+            assert!(!expected);
+            standard_only += 1;
+        }
+        assert_eq!(
+            validator.is_valid(value),
+            expected || utf16_only,
+            "standard Schema: {name}"
+        );
+    };
     let fixture: Value =
         serde_json::from_str(include_str!("fixtures/native-messaging-v1.json")).unwrap();
     let mut count = 0;
     for case in fixture["hostMessages"].as_array().unwrap() {
         let value = &case["message"];
+        check_schema(
+            case["name"].as_str().unwrap(),
+            value,
+            case["valid"].as_bool().unwrap(),
+        );
         assert_eq!(
             decode(&serde_json::to_vec(value).unwrap()).is_ok(),
             case["valid"].as_bool().unwrap(),
@@ -166,6 +195,11 @@ fn current_kwel_native_only_fixture_is_accepted_without_local_routing() {
         let mut value = case["identity"].clone();
         value["v"] = json!(1);
         value["type"] = json!("hello");
+        check_schema(
+            case["name"].as_str().unwrap(),
+            &value,
+            case["valid"].as_bool().unwrap(),
+        );
         assert_eq!(
             decode(&serde_json::to_vec(&value).unwrap()).is_ok(),
             case["valid"].as_bool().unwrap(),
@@ -176,6 +210,7 @@ fn current_kwel_native_only_fixture_is_accepted_without_local_routing() {
     }
     for case in fixture["searchResults"].as_array().unwrap() {
         let value = &case["expected"];
+        check_schema(case["name"].as_str().unwrap(), value, true);
         let message = decode(&serde_json::to_vec(value).unwrap()).unwrap();
         assert_eq!(
             serde_json::to_value(message).unwrap(),
@@ -186,11 +221,13 @@ fn current_kwel_native_only_fixture_is_accepted_without_local_routing() {
         count += 1;
     }
     for case in fixture["errors"].as_array().unwrap() {
+        check_schema(case["code"].as_str().unwrap(), case, true);
         let message = decode(&serde_json::to_vec(case).unwrap()).unwrap();
         assert_eq!(serde_json::to_value(message).unwrap(), *case);
         count += 1;
     }
     for value in fixture["responses"].as_object().unwrap().values() {
+        check_schema(value["type"].as_str().unwrap(), value, true);
         assert_eq!(
             serde_json::to_value(decode(&serde_json::to_vec(value).unwrap()).unwrap()).unwrap(),
             *value
@@ -198,4 +235,5 @@ fn current_kwel_native_only_fixture_is_accepted_without_local_routing() {
         count += 1;
     }
     assert_eq!(count, 65);
+    assert_eq!(standard_only, 3);
 }
