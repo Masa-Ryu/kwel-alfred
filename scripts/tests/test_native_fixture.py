@@ -69,7 +69,7 @@ class NativeFixtureProvenance(unittest.TestCase):
             checker.verify(self.peer)
 
     def test_reference_paths_cannot_escape_checkout(self):
-        for path in ("../outside.json", "/outside.json"):
+        for path in ("../outside.json", "/outside.json", r"C:\outside.json", r"C:outside.json", r"\outside.json", r"..\outside.json"):
             with self.subTest(path=path):
                 self.metadata["sources"][0]["path"] = path
                 self.save_metadata()
