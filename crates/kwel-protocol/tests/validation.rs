@@ -33,21 +33,26 @@ fn specification_examples_validate_against_the_corresponding_schema() {
         ),
     ] {
         let validator = schema(source);
-        let mut count = 0;
-        for example in document.split("```json\n").skip(1) {
-            let value: Value = serde_json::from_str(example.split("```").next().unwrap()).unwrap();
-            let validator = if value.get("type").is_some() {
-                &validator
-            } else {
-                &item
-            };
-            assert!(
-                validator.is_valid(&value),
-                "Invalid documented example: {value}"
-            );
-            count += 1;
+        // Exercise both checkout styles on every OS; fixture bytes are untouched.
+        for newline in ["\n", "\r\n"] {
+            let document = document.lines().collect::<Vec<_>>().join(newline);
+            let mut count = 0;
+            for example in document.split("```json").skip(1) {
+                let value: Value =
+                    serde_json::from_str(example.split("```").next().unwrap()).unwrap();
+                let validator = if value.get("type").is_some() {
+                    &validator
+                } else {
+                    &item
+                };
+                assert!(
+                    validator.is_valid(&value),
+                    "Invalid documented example: {value}"
+                );
+                count += 1;
+            }
+            assert_eq!(count, expected);
         }
-        assert_eq!(count, expected);
     }
 }
 
