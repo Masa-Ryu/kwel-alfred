@@ -2,20 +2,28 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Masa-Ryu/kwel-connect/raw/main/docs/schemas/native-messaging-v1.schema.json",
   "title": "Kwel Native Messaging v1",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "v": {
-      "const": 1
-    },
-    "type": {
-      "type": "string"
-    },
+  "description": "Native-only wire shapes. x-utf16-maxLength is normative; standard maxLength counts Unicode code points. Transport enforces 1\u20131,000,000 UTF-8 bytes. Local Client routing is a separate protocol.",
+  "$defs": {
     "requestId": {
       "type": "string",
       "minLength": 1,
       "maxLength": 100,
       "x-utf16-maxLength": 100
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "profileLabel": {
+      "type": "string",
+      "maxLength": 64,
+      "x-utf16-maxLength": 64,
+      "not": {
+        "pattern": "[\\r\\n]"
+      },
+      "default": ""
     },
     "query": {
       "type": "string",
@@ -25,170 +33,290 @@
     "limit": {
       "type": "integer",
       "minimum": 1,
-      "maximum": 100
-    },
-    "profileId": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-    },
-    "profileLabel": {
-      "type": "string",
-      "maxLength": 64,
-      "x-utf16-maxLength": 64,
-      "pattern": "^[^\\r\\n]*$"
+      "maximum": 100,
+      "default": 20
     },
     "openRef": {
       "type": "string",
-      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      "minLength": 1,
+      "maxLength": 100,
+      "x-utf16-maxLength": 100,
+      "description": "Opaque Native request reference. Kwel issues UUIDs and revalidates its current reference table. Local Client requests separately require UUIDs."
     },
-    "items": {
-      "type": "array",
-      "maxItems": 100,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "title",
-          "url",
-          "domain",
-          "openRef"
-        ],
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 1
-          },
-          "url": {
-            "type": "string",
-            "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
-            "description": "HTTP(S) result data. Host, escaping and control-character validation follow the normative Native v1 rules and Go reference fixtures."
-          },
-          "domain": {
-            "type": "string"
-          },
-          "openRef": {
-            "type": "string",
-            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-          }
-        }
-      }
-    },
-    "hasMore": {
-      "type": "boolean"
-    },
-    "code": {
-      "enum": [
-        "BAD_REQUEST",
-        "INVALID_REQUEST",
-        "INCOMPATIBLE_VERSION",
-        "NOT_READY",
-        "RESULT_EXPIRED",
-        "OPEN_FAILED",
-        "SEARCH_FAILED",
-        "PROFILE_CONFLICT",
-        "HOST_NOT_FOUND",
-        "DISCONNECTED",
-        "TIMEOUT",
-        "PERMISSION_REQUIRED"
-      ]
-    },
-    "message": {
-      "type": "string"
-    },
-    "ok": {
-      "const": true
-    }
-  },
-  "required": [
-    "v",
-    "type"
-  ],
-  "oneOf": [
-    {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "type": {
-          "const": "hello"
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
+          "description": "HTTP(S), hostname and escaping are checked by the native validators."
+        },
+        "domain": {
+          "type": "string"
+        },
+        "openRef": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
         }
       },
       "required": [
+        "title",
+        "url",
+        "domain",
+        "openRef"
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "hello"
+        },
+        "profileId": {
+          "$ref": "#/$defs/profileId"
+        },
+        "profileLabel": {
+          "$ref": "#/$defs/profileLabel"
+        }
+      },
+      "required": [
+        "v",
+        "type",
         "profileId"
       ]
     },
     {
+      "type": "object",
+      "x-direction": "host-to-extension",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
         "type": {
           "const": "hello-ack"
         }
       },
-      "required": []
+      "required": [
+        "v",
+        "type"
+      ]
     },
     {
+      "type": "object",
+      "x-direction": "host-to-extension",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
         "type": {
           "const": "ping"
         }
       },
-      "required": []
+      "required": [
+        "v",
+        "type"
+      ]
     },
     {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
         "type": {
           "const": "pong"
         }
       },
-      "required": []
-    },
-    {
-      "properties": {
-        "type": {
-          "const": "search"
-        }
-      },
       "required": [
-        "requestId",
-        "limit"
+        "v",
+        "type"
       ]
     },
     {
+      "type": "object",
+      "x-direction": "host-to-extension",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
         "type": {
-          "const": "search-result"
+          "const": "search"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "query": {
+          "$ref": "#/$defs/query"
+        },
+        "limit": {
+          "$ref": "#/$defs/limit"
         }
       },
       "required": [
+        "v",
+        "type",
         "requestId",
+        "query"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "search-result"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        },
+        "hasMore": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "requestId",
+        "items",
         "hasMore"
       ]
     },
     {
+      "type": "object",
+      "x-direction": "host-to-extension",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
         "type": {
           "const": "open-page"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "openRef": {
+          "$ref": "#/$defs/openRef"
         }
       },
       "required": [
+        "v",
+        "type",
         "requestId",
         "openRef"
       ]
     },
     {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
         "type": {
           "const": "open-result"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "ok": {
+          "const": true
         }
       },
       "required": [
+        "v",
+        "type",
         "requestId",
         "ok"
       ]
     },
     {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
         "type": {
           "const": "error"
+        },
+        "requestId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/requestId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null or legacy omission is an uncorrelated notice; neither may satisfy a pending request."
+        },
+        "code": {
+          "enum": [
+            "BAD_REQUEST",
+            "INVALID_REQUEST",
+            "INCOMPATIBLE_VERSION",
+            "NOT_READY",
+            "RESULT_EXPIRED",
+            "OPEN_FAILED",
+            "SEARCH_FAILED",
+            "PROFILE_CONFLICT",
+            "HOST_NOT_FOUND",
+            "DISCONNECTED",
+            "TIMEOUT",
+            "PERMISSION_REQUIRED"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "default": ""
         }
       },
       "required": [
+        "v",
+        "type",
         "code"
       ]
     }

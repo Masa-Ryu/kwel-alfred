@@ -1,0 +1,718 @@
+{
+  "protocolVersion": 1,
+  "hostName": "com.kwel.bridge",
+  "limits": {
+    "queryUtf16Units": 200,
+    "requestIdUtf16Units": 100,
+    "profileLabelUtf16Units": 64,
+    "searchResults": 100,
+    "messageBytes": 1000000
+  },
+  "hostMessages": [
+    {
+      "name": "hello acknowledgement",
+      "message": {
+        "v": 1,
+        "type": "hello-ack"
+      },
+      "valid": true
+    },
+    {
+      "name": "ping",
+      "message": {
+        "v": 1,
+        "type": "ping"
+      },
+      "valid": true
+    },
+    {
+      "name": "search",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": true
+    },
+    {
+      "name": "explicit empty query",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "",
+        "limit": 20
+      },
+      "valid": true
+    },
+    {
+      "name": "default search limit",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto"
+      },
+      "valid": true
+    },
+    {
+      "name": "query 200 ASCII",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "limit": 20
+      },
+      "valid": true
+    },
+    {
+      "name": "query 201 ASCII",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "query 100 emoji",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "limit": 20
+      },
+      "valid": true
+    },
+    {
+      "name": "query 101 emoji",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "request ID 100 ASCII",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": true
+    },
+    {
+      "name": "request ID 101 ASCII",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "request ID 50 emoji",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": true
+    },
+    {
+      "name": "request ID 51 emoji",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "empty request ID",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "null request ID",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": null,
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "search limit 1",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 1
+      },
+      "valid": true
+    },
+    {
+      "name": "search limit 100",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 100
+      },
+      "valid": true
+    },
+    {
+      "name": "search limit 0",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 0
+      },
+      "valid": false
+    },
+    {
+      "name": "search limit 101",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 101
+      },
+      "valid": false
+    },
+    {
+      "name": "search limit -1",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": -1
+      },
+      "valid": false
+    },
+    {
+      "name": "search limit 1.5",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 1.5
+      },
+      "valid": false
+    },
+    {
+      "name": "missing query",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "null query",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": null,
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "unknown search field",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 20,
+        "extra": true
+      },
+      "valid": false
+    },
+    {
+      "name": "unsupported version",
+      "message": {
+        "v": 2,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": false,
+      "errorCode": "INCOMPATIBLE_VERSION"
+    },
+    {
+      "name": "nonnumeric version",
+      "message": {
+        "v": "1",
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "unknown operation",
+      "message": {
+        "v": 1,
+        "type": "delete-history",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 20
+      },
+      "valid": false
+    },
+    {
+      "name": "not an object",
+      "message": null,
+      "valid": false
+    },
+    {
+      "name": "array",
+      "message": [],
+      "valid": false
+    },
+    {
+      "name": "unknown ping field",
+      "message": {
+        "v": 1,
+        "type": "ping",
+        "extra": true
+      },
+      "valid": false
+    },
+    {
+      "name": "open page",
+      "message": {
+        "v": 1,
+        "type": "open-page",
+        "requestId": "open-1",
+        "openRef": "00000000-0000-4000-8000-000000000101"
+      },
+      "valid": true
+    },
+    {
+      "name": "missing open reference",
+      "message": {
+        "v": 1,
+        "type": "open-page",
+        "requestId": "open-1"
+      },
+      "valid": false
+    },
+    {
+      "name": "arbitrary open URL",
+      "message": {
+        "v": 1,
+        "type": "open-page",
+        "requestId": "open-1",
+        "url": "https://example.com"
+      },
+      "valid": false
+    },
+    {
+      "name": "search client routing",
+      "message": {
+        "v": 1,
+        "type": "search",
+        "requestId": "r",
+        "query": "Kyoto",
+        "limit": 20,
+        "profileId": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "valid": false
+    },
+    {
+      "name": "open client routing",
+      "message": {
+        "v": 1,
+        "type": "open-page",
+        "requestId": "open-1",
+        "openRef": "00000000-0000-4000-8000-000000000101",
+        "profileId": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "valid": false
+    },
+    {
+      "name": "host-only operation profile-probe",
+      "message": {
+        "v": 1,
+        "type": "profile-probe",
+        "profileId": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "valid": false
+    },
+    {
+      "name": "host-only operation doctor",
+      "message": {
+        "v": 1,
+        "type": "doctor",
+        "profileId": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "valid": false
+    },
+    {
+      "name": "host-only operation uninstall",
+      "message": {
+        "v": 1,
+        "type": "uninstall",
+        "profileId": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "valid": false
+    }
+  ],
+  "hello": [
+    {
+      "name": "normal",
+      "identity": {
+        "profileId": "550e8400-e29b-41d4-a716-446655440000",
+        "profileLabel": "Work Chrome"
+      },
+      "valid": true
+    },
+    {
+      "name": "empty label",
+      "identity": {
+        "profileId": "550e8400-e29b-41d4-a716-446655440000",
+        "profileLabel": ""
+      },
+      "valid": true
+    },
+    {
+      "name": "label 64 ASCII",
+      "identity": {
+        "profileId": "550e8400-e29b-41d4-a716-446655440000",
+        "profileLabel": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "valid": true
+    },
+    {
+      "name": "label 65 ASCII",
+      "identity": {
+        "profileId": "550e8400-e29b-41d4-a716-446655440000",
+        "profileLabel": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "valid": false
+    },
+    {
+      "name": "label 32 emoji",
+      "identity": {
+        "profileId": "550e8400-e29b-41d4-a716-446655440000",
+        "profileLabel": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+      },
+      "valid": true
+    },
+    {
+      "name": "label 33 emoji",
+      "identity": {
+        "profileId": "550e8400-e29b-41d4-a716-446655440000",
+        "profileLabel": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+      },
+      "valid": false
+    },
+    {
+      "name": "label newline",
+      "identity": {
+        "profileId": "550e8400-e29b-41d4-a716-446655440000",
+        "profileLabel": "Work\nChrome"
+      },
+      "valid": false
+    },
+    {
+      "name": "invalid profile ID",
+      "identity": {
+        "profileId": "work",
+        "profileLabel": "Work"
+      },
+      "valid": false
+    }
+  ],
+  "searchResults": [
+    {
+      "name": "ordered results",
+      "pages": [
+        {
+          "id": "a",
+          "title": "One",
+          "url": "https://example.com/a",
+          "domain": "example.com",
+          "openRef": "00000000-0000-4000-8000-000000000101"
+        },
+        {
+          "id": "b",
+          "title": "Two",
+          "url": "https://example.com/b",
+          "domain": "example.com",
+          "openRef": "00000000-0000-4000-8000-000000000102"
+        }
+      ],
+      "limit": 20,
+      "cursor": null,
+      "partial": false,
+      "expected": {
+        "v": 1,
+        "type": "search-result",
+        "requestId": "r",
+        "items": [
+          {
+            "title": "One",
+            "url": "https://example.com/a",
+            "domain": "example.com",
+            "openRef": "00000000-0000-4000-8000-000000000101"
+          },
+          {
+            "title": "Two",
+            "url": "https://example.com/b",
+            "domain": "example.com",
+            "openRef": "00000000-0000-4000-8000-000000000102"
+          }
+        ],
+        "hasMore": false
+      }
+    },
+    {
+      "name": "result limit preserves prefix",
+      "pages": [
+        {
+          "id": "a",
+          "title": "One",
+          "url": "https://example.com/a",
+          "domain": "example.com",
+          "openRef": "00000000-0000-4000-8000-000000000101"
+        },
+        {
+          "id": "b",
+          "title": "Two",
+          "url": "https://example.com/b",
+          "domain": "example.com",
+          "openRef": "00000000-0000-4000-8000-000000000102"
+        }
+      ],
+      "limit": 1,
+      "cursor": null,
+      "partial": false,
+      "expected": {
+        "v": 1,
+        "type": "search-result",
+        "requestId": "r",
+        "items": [
+          {
+            "title": "One",
+            "url": "https://example.com/a",
+            "domain": "example.com",
+            "openRef": "00000000-0000-4000-8000-000000000101"
+          }
+        ],
+        "hasMore": true
+      }
+    },
+    {
+      "name": "empty search result",
+      "pages": [],
+      "limit": 20,
+      "cursor": null,
+      "partial": false,
+      "expected": {
+        "v": 1,
+        "type": "search-result",
+        "requestId": "r",
+        "items": [],
+        "hasMore": false
+      }
+    },
+    {
+      "name": "backend continuation",
+      "pages": [
+        {
+          "id": "a",
+          "title": "One",
+          "url": "https://example.com/a",
+          "domain": "example.com",
+          "openRef": "00000000-0000-4000-8000-000000000101"
+        }
+      ],
+      "limit": 20,
+      "cursor": "next",
+      "partial": false,
+      "expected": {
+        "v": 1,
+        "type": "search-result",
+        "requestId": "r",
+        "items": [
+          {
+            "title": "One",
+            "url": "https://example.com/a",
+            "domain": "example.com",
+            "openRef": "00000000-0000-4000-8000-000000000101"
+          }
+        ],
+        "hasMore": true
+      }
+    },
+    {
+      "name": "partial search",
+      "pages": [
+        {
+          "id": "a",
+          "title": "One",
+          "url": "https://example.com/a",
+          "domain": "example.com",
+          "openRef": "00000000-0000-4000-8000-000000000101"
+        }
+      ],
+      "limit": 20,
+      "cursor": null,
+      "partial": true,
+      "expected": {
+        "v": 1,
+        "type": "search-result",
+        "requestId": "r",
+        "items": [
+          {
+            "title": "One",
+            "url": "https://example.com/a",
+            "domain": "example.com",
+            "openRef": "00000000-0000-4000-8000-000000000101"
+          }
+        ],
+        "hasMore": true
+      }
+    }
+  ],
+  "errors": [
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": "r",
+      "code": "BAD_REQUEST",
+      "message": "Invalid request."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": "r",
+      "code": "INCOMPATIBLE_VERSION",
+      "message": "Native host protocol version is incompatible."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": "r",
+      "code": "NOT_READY",
+      "message": "Local connection is not ready."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": "r",
+      "code": "SEARCH_FAILED",
+      "message": "Search failed."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": "r",
+      "code": "RESULT_EXPIRED",
+      "message": "Search result expired."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": "r",
+      "code": "OPEN_FAILED",
+      "message": "Could not open search result."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": null,
+      "code": "BAD_REQUEST",
+      "message": "Invalid request."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": null,
+      "code": "INCOMPATIBLE_VERSION",
+      "message": "Native host protocol version is incompatible."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": null,
+      "code": "NOT_READY",
+      "message": "Local connection is not ready."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": null,
+      "code": "SEARCH_FAILED",
+      "message": "Search failed."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": null,
+      "code": "RESULT_EXPIRED",
+      "message": "Search result expired."
+    },
+    {
+      "v": 1,
+      "type": "error",
+      "requestId": null,
+      "code": "OPEN_FAILED",
+      "message": "Could not open search result."
+    }
+  ],
+  "responses": {
+    "pong": {
+      "v": 1,
+      "type": "pong"
+    },
+    "openResult": {
+      "v": 1,
+      "type": "open-result",
+      "requestId": "open-1",
+      "ok": true
+    }
+  }
+}

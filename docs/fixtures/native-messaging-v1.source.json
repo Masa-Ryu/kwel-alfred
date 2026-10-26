@@ -1,0 +1,18 @@
+{
+  "repository": "Masa-Ryu/kwel",
+  "commit": "1ac876f8859e9f95100d7fcae4df86b3d7af890c",
+  "fixtureSha256": "27eeee1369b438e3376b16451e6dc011752c9d98ca8ec2af6e7845a2c30c0227",
+  "sources": [
+    {
+      "path": "extension/src/contracts/local-connection/protocol.ts",
+      "sha256": "355dcd90c21e328351314548ab9b7c5629c7d721416cc9a8772a30488fdd5836"
+    },
+    {
+      "path": "tests/fixtures/local-connection/native-messaging-v1.json",
+      "sha256": "27eeee1369b438e3376b16451e6dc011752c9d98ca8ec2af6e7845a2c30c0227"
+    }
+  ],
+  "canonicalRepository": "Masa-Ryu/kwel-connect",
+  "canonicalPath": "docs/fixtures/native-messaging-v1.json",
+  "adoption": "Reviewed unchanged from Kwel PR #211; this repository now owns the shared Native v1 corpus."
+}

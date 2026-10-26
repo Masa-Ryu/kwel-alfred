@@ -137,7 +137,7 @@ fn preflight_manifest(layout: &Layout, name: &str) -> Result<()> {
         || !path_matches
         || !matches!(
             current.description.as_str(),
-            "Kwel Local Integration" | "Kwel Alfred Integration"
+            "Kwel Local Connection" | "Kwel Local Integration" | "Kwel Alfred Integration"
         )
         || current.allowed_origins != [format!("chrome-extension://{EXTENSION_ID}/")]
     {
@@ -252,7 +252,10 @@ fn system_preflight(binary: &Path, client: &Path, manifests: &Path) -> Result<()
             if previous.is_none()
                 || manifest.path != binary
                 || manifest.name != name
-                || manifest.description != "Kwel Local Integration"
+                || !matches!(
+                    manifest.description.as_str(),
+                    "Kwel Local Connection" | "Kwel Local Integration"
+                )
                 || manifest.kind != "stdio"
                 || manifest.allowed_origins != [format!("chrome-extension://{EXTENSION_ID}/")]
             {
@@ -352,7 +355,7 @@ fn write_registration(layout: &Layout) -> Result<()> {
         let path = layout.manifest(name);
         let manifest = Manifest {
             name: name.into(),
-            description: "Kwel Local Integration".into(),
+            description: "Kwel Local Connection".into(),
             path: layout.binary(),
             kind: "stdio".into(),
             allowed_origins: vec![format!("chrome-extension://{EXTENSION_ID}/")],

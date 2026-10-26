@@ -173,13 +173,13 @@
 Kwel for Chrome: https://chromewebstore.google.com/detail/kwel/mhablbmgafbdofgaffhdnnknjhafmlin
 
 1. Download Kwel.alfredworkflow from https://github.com/Masa-Ryu/kwel-connect/releases and double-click it to import into Alfred.
-2. Enable Local Integration (Alfred Integration in older versions) in Kwel Settings and copy the Profile ID.
+2. Enable Local Connection (Alfred Integration in older versions) in Kwel Settings and copy the Profile ID.
 3. Paste the ID into Kwel Profile ID below.
 4. Add Search Kwel in Alfred Preferences → Features → Default Results → Setup fallback searches and save.
 
 Open Alfred, type Kyoto, choose Search Kwel, and press Return. Select a page and press Return to open it in Chrome.
 
-The first Search Kwel invocation installs or reuses the shared Kwel Connect Host. Keep Chrome open; results appear automatically when Kwel connects. If it remains disconnected, check Local Integration and the Profile ID in the same Chrome profile.</string>
+The first Search Kwel invocation installs or reuses the shared Kwel Connect Host. Keep Chrome open; results appear automatically when Kwel connects. If it remains disconnected, check Local Connection and the Profile ID in the same Chrome profile.</string>
 	<key>uidata</key>
 	<dict>
 		<key>5B612B92-409B-4AC4-9F39-7E0AE18A8991</key>
@@ -230,7 +230,7 @@ The first Search Kwel invocation installs or reuses the shared Kwel Connect Host
 				<true/>
 			</dict>
 			<key>description</key>
-			<string>Paste the Profile ID from Kwel Settings → Local Integration.</string>
+			<string>Paste the Profile ID from Kwel Settings → Local Connection.</string>
 			<key>label</key>
 			<string>Kwel Profile ID</string>
 			<key>type</key>

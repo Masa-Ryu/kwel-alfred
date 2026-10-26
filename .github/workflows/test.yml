@@ -96,6 +96,36 @@ jobs:
             dist/BUILDINFO.json
           if-no-files-found: error
           retention-days: ${{ inputs.release-artifacts && 2 || 1 }}
+  native-typescript:
+    name: Shared Native v1 (Rust corpus / TypeScript)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify corpus and pin the Kwel reference
+        id: kwel
+        run: |
+          python3 scripts/check-native-fixture.py
+          echo "sha=$(python3 scripts/check-native-fixture.py --print-kwel-ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Masa-Ryu/kwel
+          ref: ${{ steps.kwel.outputs.sha }}
+          path: kwel-reference
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Require identical Rust and TypeScript fixture bytes
+        run: python3 scripts/check-native-fixture.py --kwel-root kwel-reference
+      - name: Run the pinned TypeScript Native v1 conformance suite
+        working-directory: kwel-reference
+        run: |
+          npx --yes pnpm@10.17.1 install --frozen-lockfile
+          npx --yes pnpm@10.17.1 test:local-protocol
   compatibility:
     name: Released package compatibility (${{ matrix.name }})
     needs: rust

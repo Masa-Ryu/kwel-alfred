@@ -2,7 +2,7 @@
 
 Kwelの検索をローカルアプリから使うための公式連携基盤です。macOS・Windows・Ubuntu向けのNative Host、JSON CLI、公式 **Kwel for Alfred** を提供します。
 
-必要なもの：Google Chromeと、Local Integrationに対応した[Kwel](https://kwel.ryu.zone)。Alfredを使う場合はmacOSとAlfred 5 Powerpackも必要です。
+必要なもの：Google Chromeと、Local Connectionに対応した[Kwel](https://kwel.ryu.zone)。Alfredを使う場合はmacOSとAlfred 5 Powerpackも必要です。
 
 ## インストール
 
@@ -19,9 +19,9 @@ macOSではpkgを開いて自分のホームフォルダへ、Windowsではexe�
 
 macOSの利用条件は[現行Chromeの対応OS](https://support.google.com/chrome/answer/95411)に合わせています。
 
-更新時は、使用中のChromeプロフィールでLocal IntegrationをOFFにしてからインストーラーを開き、更新後にONへ戻します。
+更新時は、使用中のChromeプロフィールでLocal ConnectionをOFFにしてからインストーラーを開き、更新後にONへ戻します。
 
-Kwel Settingsで **Local Integration** をONにします。以前のKwelでは **Alfred Integration** という名前です。Chromeの権限確認が表示された場合は内容を確認して承認してください。
+Kwel Settingsで **Local Connection** をONにします。以前のKwelでは **Alfred Integration** という名前です。Chromeの権限確認が表示された場合は内容を確認して承認してください。
 
 配布物は未署名・未公証です。GatekeeperやSmartScreenでブロックされる場合があります。OSの確認手順で配布元を確認してください。
 
@@ -37,7 +37,7 @@ Alfredのみを使う場合、初回検索でHostが自動登録されるため�
 
 ## 削除
 
-Local IntegrationをOFFにしてから、macOSでは`~/Library/Application Support/Kwel/NativeBridge/`内の **Kwel Connect Uninstaller**、Windowsでは設定のアプリ一覧、Ubuntuではパッケージマネージャーから削除します。使用中のHostは削除を拒否し、Kwelの履歴やプロフィールは保持します。
+Local ConnectionをOFFにしてから、macOSでは`~/Library/Application Support/Kwel/NativeBridge/`内の **Kwel Connect Uninstaller**、Windowsでは設定のアプリ一覧、Ubuntuではパッケージマネージャーから削除します。使用中のHostは削除を拒否し、Kwelの履歴やプロフィールは保持します。
 
 ## ランチャー開発者向け
 

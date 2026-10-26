@@ -48,3 +48,9 @@ The original `1.00` Workflow display version maps to SemVer **1.0.0**; new relea
 The GitHub repository was renamed in place to `Masa-Ryu/kwel-connect`; existing history, Issue #2 and PR #1 remain. Canonical URLs use the new name. The Alfred bundle ID `com.kwel.alfred.search` is intentionally stable for preference/import compatibility; the Native Host has the new canonical name and a legacy alias.
 
 Issue #2 originally requested a research-only RFC. The implementation request supersedes that scope. The original Go CI baseline passed static analysis and race tests before migration. Rust's protocol/security/registration/installer tests passed on all five requested hosted runners before Go removal. The retained fixtures compare 81 original Go validation/normalization cases, including UTF-16 limits, framing, URL authority/escaping and IPv6 zones. No Go toolchain is used by the final build or tests. Final CI evidence and remaining real-app checks are recorded in PR #1 and Issue #2.
+
+## Shared Native v1 release gate
+
+`cargo test --workspace --locked` includes the 65-case Native-only corpus and all 81 archived Go-reference cases with documented corrections. `scripts/check-native-fixture.py --kwel-root <checkout>` verifies the adopted corpus hash, the pinned Kwel commit and protocol source, and identical JSON bytes. The separate TypeScript CI job uses Node.js 24 and pnpm 10.17.1, adds one fully SHA-pinned `actions/setup-node` dependency, and runs the reference suite without building Chrome or reading any personal profile. The existing checkout/upload/download Action SHAs remain unchanged.
+
+The reusable Test workflow is required by Release's `validate` job. Rust or TypeScript conformance failure therefore blocks `publish`; there is no allow-failure or skipped conformance path. Actual Chrome/Alfred interaction remains a separate manual validation step.

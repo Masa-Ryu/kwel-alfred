@@ -4,6 +4,6 @@ kwel_host="$HOME/Library/Application Support/Kwel/NativeBridge/bin/kwel-native-h
 if "$kwel_host" uninstall; then
   /usr/bin/osascript -e 'display dialog "Kwel Connect has been unregistered. Your Kwel history and profiles were retained." buttons {"OK"} default button "OK"'
 else
-  /usr/bin/osascript -e 'display dialog "Kwel Connect could not be removed safely. Disable Local Integration in Kwel, then try again." buttons {"OK"} default button "OK"'
+  /usr/bin/osascript -e 'display dialog "Kwel Connect could not be removed safely. Disable Local Connection in Kwel, then try again." buttons {"OK"} default button "OK"'
   exit 1
 fi

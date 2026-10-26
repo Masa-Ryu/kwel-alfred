@@ -82,6 +82,11 @@ impl Session {
             .map_err(|_| Error(Code::Disconnected))
     }
     fn deliver(&self, mut message: Message) {
+        // A valid uncorrelated Native error is a notice, never the response to
+        // an arbitrary pending request. Its deadline remains unchanged.
+        if message.kind == "error" && message.request_id.is_empty() {
+            return;
+        }
         if self.conflicted() {
             message = Message::error(&message.request_id, Code::ProfileConflict);
         }
@@ -150,6 +155,7 @@ impl Session {
         };
         message.request_id = native_id.clone();
         message.profile_id.clear();
+        message.native()?;
         self.send(message).await?;
         let mut closed = self.closed.subscribe();
         if *closed.borrow() {
@@ -376,6 +382,7 @@ pub async fn run_transport(
         .await
         .map_err(|_| Error(Code::Timeout))?
         .ok_or(Error(Code::Disconnected))??;
+    hello.native()?;
     hello.hello()?;
     let profile = hello.profile_id.to_lowercase();
     #[cfg(target_os = "macos")]
@@ -424,7 +431,7 @@ pub async fn run_transport(
                 _ = session.output.closed() => return Err(Error(Code::Disconnected)),
             };
             let message = message?;
-            message.envelope()?;
+            message.native()?;
             if !matches!(
                 message.kind.as_str(),
                 "pong" | "search-result" | "open-result" | "error"
@@ -469,27 +476,30 @@ async fn legacy_conflict(
         Err(error) => return Err(error),
     };
     let claim = uuid::Uuid::new_v4().to_string();
-    let message = Message {
-        session_id: claim.clone(),
-        ..Message::new("profile-claim")
-    };
+    let message = serde_json::json!({"v":VERSION,"type":"profile-claim","sessionId":claim});
     tokio::time::timeout(Duration::from_secs(1), ipc::write(&mut *stream, &message))
         .await
         .map_err(|_| Error(Code::Timeout))??;
     let bytes = tokio::time::timeout(Duration::from_secs(1), ipc::read(&mut *stream, 1024))
         .await
         .map_err(|_| Error(Code::Timeout))??;
-    let ack = kwel_protocol::decode(&bytes)?;
-    if ack.kind != "profile-ack" || ack.session_id != claim {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct LegacyAck {
+        v: u32,
+        #[serde(rename = "type")]
+        kind: String,
+        #[serde(rename = "sessionId")]
+        session: String,
+    }
+    let ack: LegacyAck = serde_json::from_slice(&bytes)?;
+    if ack.v != VERSION || ack.kind != "profile-ack" || ack.session != claim {
         return Err(Error(Code::ProfileConflict));
     }
     drop(stream);
     let _ = tokio::time::timeout(Duration::from_secs(5), input.recv()).await;
     if let Ok(mut stream) = ipc::connect(&endpoint).await {
-        let release = Message {
-            session_id: claim,
-            ..Message::new("profile-release")
-        };
+        let release = serde_json::json!({"v":VERSION,"type":"profile-release","sessionId":claim});
         let _ = tokio::time::timeout(Duration::from_secs(1), async {
             ipc::write(&mut *stream, &release).await?;
             ipc::read(&mut *stream, 1024).await
@@ -545,6 +555,29 @@ mod tests {
         }
         assert!(session.state.lock().unwrap().pending.is_empty());
     }
+    #[tokio::test(start_paused = true)]
+    async fn uncorrelated_errors_do_not_consume_pending_requests_or_extend_deadlines() {
+        let (session, mut output) = session();
+        let copy = session.clone();
+        let job = tokio::spawn(async move { copy.request(search()).await });
+        let request = output.recv().await.unwrap();
+        tokio::time::advance(REQUEST_TIMEOUT / 2).await;
+        let notice = kwel_protocol::decode(
+            br#"{"v":1,"type":"error","requestId":null,"code":"BAD_REQUEST","message":"Notice"}"#,
+        )
+        .unwrap();
+        session.deliver(notice);
+        {
+            let state = session.state.lock().unwrap();
+            assert_eq!(state.pending.len(), 1);
+            assert!(state.pending.contains_key(&request.request_id));
+        }
+        assert!(!job.is_finished());
+        tokio::time::advance(REQUEST_TIMEOUT / 2 + Duration::from_millis(1)).await;
+        assert!(matches!(job.await.unwrap(), Err(Error(Code::Timeout))));
+        assert!(session.state.lock().unwrap().pending.is_empty());
+    }
+
     #[tokio::test(start_paused = true)]
     async fn request_timeout_unregisters_correlation_and_rejects_late_response() {
         let (session, mut output) = session();
