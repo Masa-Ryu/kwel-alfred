@@ -3,7 +3,7 @@
 import argparse
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import subprocess
 
@@ -25,9 +25,10 @@ def verify(kwel_root=None):
         if head != source['commit']:
             raise ValueError('TypeScript checkout does not match the pinned Kwel commit.')
         for entry in source['sources']:
+            for candidate in (PurePosixPath(entry['path']), PureWindowsPath(entry['path'])):
+                if candidate.anchor or '..' in candidate.parts:
+                    raise ValueError('Invalid reference path.')
             path = Path(entry['path'])
-            if path.is_absolute() or '..' in path.parts:
-                raise ValueError('Invalid reference path.')
             if hashlib.sha256((kwel_root / path).read_bytes()).hexdigest() != entry['sha256']:
                 raise ValueError(f'Pinned TypeScript reference differs: {path}')
         peer = kwel_root / 'tests/fixtures/local-connection/native-messaging-v1.json'
