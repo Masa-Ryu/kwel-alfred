@@ -80,7 +80,9 @@ class BinaryCompatibility(unittest.TestCase):
                     file.write_bytes(b"host fixture")
                     file.chmod(0o755)
         fields = {"Architecture": "amd64", "Version": build.VERSION, "Depends": "libc6 (>= 2.39), libgcc-s1"}
-        with patch.object(build.platform, "machine", return_value="x86_64"), patch.object(build, "run", side_effect=unpack), patch.object(build, "output_field", side_effect=lambda _, field: fields[field]), patch.object(build, "verify_linux_binary") as inspect:
+        # This is a synthetic Linux archive, including POSIX modes, on all test
+        # hosts. Real archive modes are verified without mocks on Ubuntu CI.
+        with patch.object(build.platform, "machine", return_value="x86_64"), patch.object(build, "run", side_effect=unpack), patch.object(build, "output_field", side_effect=lambda _, field: fields[field]), patch.object(build.stat, "S_IMODE", return_value=0o755), patch.object(build, "verify_linux_binary") as inspect:
             build.verify_linux_package(Path("fixture.deb"))
         self.assertEqual([call.args[0].name for call in inspect.call_args_list], ["kwel-native-host", "kwel-bridge", "preinst", "prerm"])
 
