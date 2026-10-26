@@ -177,6 +177,26 @@ fn unrecognized_manifests_and_modified_binaries_are_never_overwritten_or_removed
     assert!(install::uninstall(&layout, &runtime).is_err());
 }
 #[test]
+fn local_connection_description_preserves_recognized_previous_registrations() {
+    let (_temp, layout, runtime, source) = fixture();
+    install::install(&source, &layout, &runtime, false).unwrap();
+    for name in [HOST_NAME, LEGACY_HOST_NAME] {
+        let path = layout.manifest(name);
+        let mut manifest: Manifest = serde_json::from_slice(&secure::read(&path).unwrap()).unwrap();
+        assert_eq!(manifest.description, "Kwel Local Connection");
+        manifest.description = "Kwel Local Integration".into();
+        secure::atomic_write(&path, &serde_json::to_vec(&manifest).unwrap(), false).unwrap();
+    }
+    install::validate_registration(&layout).unwrap();
+    install::install(&source, &layout, &runtime, false).unwrap();
+    for name in [HOST_NAME, LEGACY_HOST_NAME] {
+        let manifest: Manifest =
+            serde_json::from_slice(&secure::read(&layout.manifest(name)).unwrap()).unwrap();
+        assert_eq!(manifest.description, "Kwel Local Connection");
+    }
+}
+
+#[test]
 fn legacy_registration_migrates_without_deleting_legacy_binary() {
     let (_temp, layout, runtime, source) = fixture();
     secure::atomic_write(&layout.legacy_binary, b"legacy bridge fixture", true).unwrap();

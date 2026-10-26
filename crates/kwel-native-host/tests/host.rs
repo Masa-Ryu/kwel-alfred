@@ -256,6 +256,41 @@ async fn malformed_success_response_fails_closed_and_cancels_pending_requests() 
     );
 }
 #[tokio::test]
+async fn null_and_unknown_native_ids_cannot_take_another_clients_response() {
+    let mut host = Host::start(A).await;
+    let mut one_request = search(A, "one-local");
+    one_request["query"] = "one".into();
+    let mut two_request = search(A, "two-local");
+    two_request["query"] = "two".into();
+    let one = tokio::spawn(exchange(host.paths.clone(), A, one_request));
+    let two = tokio::spawn(exchange(host.paths.clone(), A, two_request));
+    let first = host.next().await;
+    let second = host.next().await;
+    assert_ne!(first.request_id, second.request_id);
+    assert!(first.profile_id.is_empty() && second.profile_id.is_empty());
+    let notice = kwel_protocol::decode(
+        br#"{"v":1,"type":"error","requestId":null,"code":"NOT_READY","message":"Notice"}"#,
+    )
+    .unwrap();
+    host.input.send(Ok(notice)).await.unwrap();
+    host.input
+        .send(Ok(result("unknown-native-id")))
+        .await
+        .unwrap();
+    for request in [second, first] {
+        let mut response = result(&request.request_id);
+        response.items[0].title = request.query;
+        host.input.send(Ok(response)).await.unwrap();
+    }
+    for (task, local_id, title) in [(one, "one-local", "one"), (two, "two-local", "two")] {
+        assert!(
+            matches!(task.await.unwrap(), LocalResponse::Search { request_id, items, .. } if request_id==local_id && items[0].title==title)
+        );
+    }
+    host.stop().await;
+}
+
+#[tokio::test]
 async fn failed_native_writer_releases_both_endpoints_without_another_input() {
     let host = Host::start(A).await;
     let paths = host.paths.clone();

@@ -2,29 +2,45 @@ use kwel_protocol::*;
 use serde_json::{Value, json};
 
 #[test]
-fn native_and_local_profile_requirements_are_separate() {
+fn native_validators_reject_client_routing_and_open_without_a_profile_id() {
+    let mut search = decode(br#"{"v":1,"type":"search","requestId":"r","query":""}"#).unwrap();
+    assert_eq!(search.limit, 20);
+    search.search().unwrap();
+    search.profile_id = "00000000-0000-4000-8000-00000000000a".into();
+    assert!(search.search().is_err());
+    let mut open = decode(
+        br#"{"v":1,"type":"open-page","requestId":"r","openRef":"opaque-expired-reference"}"#,
+    )
+    .unwrap();
+    open.open().unwrap();
+    open.profile_id = "00000000-0000-4000-8000-00000000000a".into();
+    assert!(open.open().is_err());
+}
+
+#[test]
+fn local_client_still_requires_a_profile_and_uuid_open_reference() {
     let profile = "00000000-0000-4000-8000-00000000000a";
     let reference = "00000000-0000-4000-8000-000000000101";
-    for mut native in [
-        json!({"v":1,"type":"search","requestId":"r","query":""}),
-        json!({"v":1,"type":"open-page","requestId":"r","openRef":reference}),
+    for value in [
+        json!({"v":1,"type":"search","requestId":"r","profileId":profile,"query":"","limit":20}),
+        json!({"v":1,"type":"open-page","requestId":"r","profileId":profile,"openRef":reference}),
     ] {
-        let message = decode(&serde_json::to_vec(&native).unwrap()).unwrap();
-        if message.kind == "search" {
-            message.search().unwrap();
-            assert_eq!(message.limit, 20);
-        } else {
-            message.open().unwrap();
-        }
-        assert!(serde_json::from_value::<LocalRequest>(native.clone()).is_err());
-        native["profileId"] = json!(profile);
-        if native["type"] == "search" {
-            native["limit"] = json!(20);
-        }
-        let local: LocalRequest = serde_json::from_value(native.clone()).unwrap();
-        local.validate().unwrap();
-        assert!(decode(&serde_json::to_vec(&native).unwrap()).is_err());
+        let request: LocalRequest = serde_json::from_value(value.clone()).unwrap();
+        request.validate().unwrap();
+        let mut missing = value.clone();
+        missing.as_object_mut().unwrap().remove("profileId");
+        assert!(serde_json::from_value::<LocalRequest>(missing).is_err());
+        let mut invalid = value;
+        invalid["profileId"] = json!("not-a-profile");
+        assert!(
+            serde_json::from_value::<LocalRequest>(invalid)
+                .unwrap()
+                .validate()
+                .is_err()
+        );
     }
+    let invalid: LocalRequest = serde_json::from_value(json!({"v":1,"type":"open-page","requestId":"r","profileId":profile,"openRef":"https://example.com"})).unwrap();
+    assert!(invalid.validate().is_err());
 }
 
 #[test]
@@ -79,6 +95,18 @@ fn null_request_id_is_only_an_uncorrelated_native_error() {
         }
         assert!(decode(&serde_json::to_vec(&value).unwrap()).is_err());
     }
+    let legacy = decode(br#"{"v":1,"type":"error","code":"BAD_REQUEST"}"#).unwrap();
+    assert_eq!(
+        serde_json::to_value(&legacy).unwrap()["requestId"],
+        Value::Null
+    );
+    assert!(legacy.response("r", false, 20).is_err());
+    assert!(decode(br#"{"v":1,"type":"error","requestId":"","code":"BAD_REQUEST"}"#).is_err());
+    let response =
+        decode(br#"{"v":1,"type":"search-result","requestId":"one","items":[],"hasMore":false}"#)
+            .unwrap();
+    assert!(response.response("two", false, 20).is_err());
+    response.response("one", false, 20).unwrap();
 }
 
 #[test]

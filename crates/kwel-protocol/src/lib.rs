@@ -115,8 +115,6 @@ pub fn id(value: &str) -> bool {
             b'8' | b'9' | b'a' | b'b' | b'A' | b'B'
         )
 }
-/// Normative v1 length: BMP scalars count once, supplementary scalars twice.
-/// Rust strings cannot contain the unpaired surrogates rejected by decode().
 pub fn units(value: &str) -> usize {
     value.encode_utf16().count()
 }
@@ -213,9 +211,9 @@ impl Message {
     pub fn open(&self) -> Result<()> {
         self.envelope()?;
         if self.kind != "open-page"
+            || !self.profile_id.is_empty()
             || self.request_id.is_empty()
             || units(&self.request_id) > MAX_REQUEST_ID_UNITS
-            || !self.profile_id.is_empty()
             || self.open_ref.is_empty()
             || units(&self.open_ref) > MAX_REQUEST_ID_UNITS
         {
@@ -334,17 +332,15 @@ impl LocalRequest {
         {
             return Err(Error(Code::InvalidRequest));
         }
-        // Routing belongs to the authenticated local IPC endpoint. Only the
-        // Native payload is validated below; it cannot carry profileId.
+        // Public clients must select a profile and can only open UUID references.
+        // Native messages have neither this routing field nor this client policy.
+        if matches!(self, Self::Open { .. }) && !id(&message.open_ref) {
+            return Err(Error(Code::InvalidRequest));
+        }
         message.profile_id.clear();
         match self {
             Self::Search { .. } => message.search(),
-            Self::Open { .. } => {
-                if !id(&message.open_ref) {
-                    return Err(Error(Code::InvalidRequest));
-                }
-                message.open()
-            }
+            Self::Open { .. } => message.open(),
             Self::Probe { .. } => Ok(()),
         }
     }

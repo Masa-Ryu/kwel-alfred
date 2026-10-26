@@ -155,6 +155,7 @@ impl Session {
         };
         message.request_id = native_id.clone();
         message.profile_id.clear();
+        message.native()?;
         self.send(message).await?;
         let mut closed = self.closed.subscribe();
         if *closed.borrow() {
@@ -554,6 +555,29 @@ mod tests {
         }
         assert!(session.state.lock().unwrap().pending.is_empty());
     }
+    #[tokio::test(start_paused = true)]
+    async fn uncorrelated_errors_do_not_consume_pending_requests_or_extend_deadlines() {
+        let (session, mut output) = session();
+        let copy = session.clone();
+        let job = tokio::spawn(async move { copy.request(search()).await });
+        let request = output.recv().await.unwrap();
+        tokio::time::advance(REQUEST_TIMEOUT / 2).await;
+        let notice = kwel_protocol::decode(
+            br#"{"v":1,"type":"error","requestId":null,"code":"BAD_REQUEST","message":"Notice"}"#,
+        )
+        .unwrap();
+        session.deliver(notice);
+        {
+            let state = session.state.lock().unwrap();
+            assert_eq!(state.pending.len(), 1);
+            assert!(state.pending.contains_key(&request.request_id));
+        }
+        assert!(!job.is_finished());
+        tokio::time::advance(REQUEST_TIMEOUT / 2 + Duration::from_millis(1)).await;
+        assert!(matches!(job.await.unwrap(), Err(Error(Code::Timeout))));
+        assert!(session.state.lock().unwrap().pending.is_empty());
+    }
+
     #[tokio::test(start_paused = true)]
     async fn request_timeout_unregisters_correlation_and_rejects_late_response() {
         let (session, mut output) = session();

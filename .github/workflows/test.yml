@@ -96,6 +96,52 @@ jobs:
             dist/BUILDINFO.json
           if-no-files-found: error
           retention-days: ${{ inputs.release-artifacts && 2 || 1 }}
+  native-typescript:
+    name: Shared Native v1 (Rust corpus / TypeScript)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify corpus and pin the Kwel reference
+        id: kwel
+        run: |
+          python3 scripts/check-native-fixture.py
+          echo "sha=$(python3 scripts/check-native-fixture.py --print-kwel-ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Masa-Ryu/kwel
+          ref: ${{ steps.kwel.outputs.sha }}
+          path: kwel-reference
+          persist-credentials: false
+      - name: Select runner-provided Node.js 24
+        run: |
+          for node_bin in "$RUNNER_TOOL_CACHE"/node/24.*/x64/bin; do
+            if [ -x "$node_bin/node" ]; then
+              "$node_bin/node" -e 'if (process.versions.node.split(".")[0] !== "24") process.exit(1); console.log(process.version)'
+              printf '%s\n' "$node_bin" >> "$GITHUB_PATH"
+              exit 0
+            fi
+          done
+          echo 'Node.js 24 is missing from the hosted runner tool cache.' >&2
+          exit 1
+      - name: Require identical Rust and TypeScript fixture bytes
+        run: python3 scripts/check-native-fixture.py --kwel-root kwel-reference
+      - name: Run the pinned TypeScript Native v1 conformance suite
+        working-directory: kwel-reference
+        run: |
+          npx --yes pnpm@10.17.1 install --frozen-lockfile
+          npx --yes pnpm@10.17.1 test:local-protocol
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: cargo build -p kwel-protocol --example native-conformance --locked
+      - name: Pass Rust frames through the actual counterpart parser
+        run: node scripts/test-kwel-parser.cjs kwel-reference
+      - name: Chrome verifier guard tests (not real E2E)
+        run: |
+          node --check scripts/test-chrome-e2e.mjs
+          node --test scripts/tests/chrome-e2e.test.mjs
   compatibility:
     name: Released package compatibility (${{ matrix.name }})
     needs: rust
@@ -185,31 +231,3 @@ jobs:
       - run: rustup toolchain install 1.99.0 --profile minimal
       - run: cargo install cargo-audit --version 0.22.2 --locked
       - run: cargo audit --deny warnings
-  kwel-protocol:
-    name: Current Kwel Native v1 conformance
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: Masa-Ryu/kwel
-          ref: 1ac876f8859e9f95100d7fcae4df86b3d7af890c
-          path: counterpart
-          persist-credentials: false
-      - run: rustup toolchain install 1.99.0 --profile minimal
-      - name: Install the counterpart's locked parser dependencies without lifecycle scripts
-        run: npx --yes pnpm@10.17.1 --dir counterpart install --frozen-lockfile --ignore-scripts
-      - run: cargo build -p kwel-protocol --example native-conformance --locked
-      - name: Execute the actual Kwel parser against Rust frames and Unicode boundaries
-        run: node scripts/test-kwel-parser.cjs counterpart
-      - name: Check the real Chrome verifier syntax (does not execute E2E)
-        run: |
-          node --check scripts/test-chrome-e2e.mjs
-          node --test scripts/tests/chrome-e2e.test.mjs
-      - name: Keep evidence classes explicit
-        run: |
-          printf '%s\n' '## Native v1 parser conformance' '74 cases passed against pinned Kwel source.' '' 'Real Chrome, permission dialogs and Alfred UI are separate checks in docs/chrome-e2e.md. This job does not attest their execution.' >> "$GITHUB_STEP_SUMMARY"
