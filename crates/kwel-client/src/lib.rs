@@ -1,3 +1,5 @@
+#[cfg(any(target_os = "macos", test))]
+mod legacy;
 #[cfg(target_os = "macos")]
 use kwel_native_host::paths;
 use kwel_native_host::{ipc, paths::RuntimePaths};
@@ -84,54 +86,7 @@ impl Client {
         let directory = paths::legacy_directory().ok_or(Error(Code::Disconnected))?;
         let mut stream =
             ipc::connect(&directory.join(format!("{}.sock", message.profile_id))).await?;
-        tokio::time::timeout(Duration::from_secs(15), async {
-            ipc::write(&mut *stream, &message).await?;
-            let bytes = ipc::read(&mut *stream, MAX_MESSAGE_BYTES).await?;
-            let response = kwel_protocol::decode(&bytes)?;
-            response.envelope()?;
-            if response.kind == "error" {
-                return Err(Error(response.code.unwrap_or(Code::Disconnected)));
-            }
-            match request {
-                LocalRequest::Probe { .. } => {
-                    if response.kind != "profile-info" || response.profile_id != message.profile_id
-                    {
-                        return Err(Error(Code::InvalidRequest));
-                    }
-                    Ok(LocalResponse::profile(
-                        &message.request_id,
-                        &Profile {
-                            profile_id: response.profile_id,
-                            profile_label: response.profile_label,
-                            host_version: if response.text.is_empty() {
-                                "legacy-v1".into()
-                            } else {
-                                response.text
-                            },
-                        },
-                    ))
-                }
-                LocalRequest::Search { .. } => {
-                    response.response(&message.request_id, false, message.limit)?;
-                    Ok(LocalResponse::Search {
-                        v: VERSION,
-                        request_id: message.request_id,
-                        items: response.items,
-                        has_more: response.has_more.unwrap_or(false),
-                    })
-                }
-                LocalRequest::Open { .. } => {
-                    response.response(&message.request_id, true, 0)?;
-                    Ok(LocalResponse::Open {
-                        v: VERSION,
-                        request_id: message.request_id,
-                        ok: true,
-                    })
-                }
-            }
-        })
-        .await
-        .map_err(|_| Error(Code::Timeout))?
+        legacy::exchange(&mut *stream, request).await
     }
     pub async fn profiles(&self) -> Result<Vec<Profile>> {
         let mut ids = self.paths.profiles()?;

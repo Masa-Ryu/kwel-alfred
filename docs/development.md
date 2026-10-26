@@ -67,3 +67,11 @@ Before a formal Connect release, also review the matching successful private pai
 Unix installer security tests execute each fixture in a dedicated subprocess so another test's fork cannot briefly inherit its live file lock. Every original assertion still runs. Production locking and concurrent IPC tests remain unchanged; no retry, sleep or skip hides a lock failure.
 
 The shared corpus is checked out with LF on every OS via `.gitattributes`; Windows `core.autocrlf` must not change the bytes whose SHA-256 is recorded. Reference paths reject both POSIX and Windows roots, drive-relative paths and parent traversal on every platform.
+
+The macOS read-only adapter for an already-running Go Host has a private closed
+response type in `crates/kwel-client/src/legacy.rs`. It serializes routed Local
+requests directly and accepts the old probe shape / omitted empty result array
+only on that existing legacy socket. Its stream regression fails with the
+Native-only codec and now covers probe, empty search and open. Wrong IDs,
+versions, routing fields and management responses remain rejected. Production
+Native decoding never acquires these exceptions. No Go source/toolchain is used.
