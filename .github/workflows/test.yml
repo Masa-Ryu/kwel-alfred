@@ -116,9 +116,17 @@ jobs:
           ref: ${{ steps.kwel.outputs.sha }}
           path: kwel-reference
           persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '24'
+      - name: Select runner-provided Node.js 24
+        run: |
+          for node_bin in "$RUNNER_TOOL_CACHE"/node/24.*/x64/bin; do
+            if [ -x "$node_bin/node" ]; then
+              "$node_bin/node" -e 'if (process.versions.node.split(".")[0] !== "24") process.exit(1); console.log(process.version)'
+              printf '%s\n' "$node_bin" >> "$GITHUB_PATH"
+              exit 0
+            fi
+          done
+          echo 'Node.js 24 is missing from the hosted runner tool cache.' >&2
+          exit 1
       - name: Require identical Rust and TypeScript fixture bytes
         run: python3 scripts/check-native-fixture.py --kwel-root kwel-reference
       - name: Run the pinned TypeScript Native v1 conformance suite
