@@ -62,6 +62,47 @@ procedure](development-host-replacement.md). The product registers only
 `com.kwel.bridge`; there is no old-Host socket discovery, fallback, coordination
 or registration rewrite.
 
+## Manual release
+
+Only the repository owner's explicit **Actions → Release → Run workflow**
+starts Release. Merging a PR, pushing main, or pushing a tag never starts it.
+The Test workflow keeps its existing automatic triggers. The Release workflow
+must first be merged into the default branch to appear in the Actions UI.
+
+1. Prepare and review main with matching Cargo, distribution configuration and
+   Alfred Workflow versions. Check `python3 scripts/check-release-version.py v1.0.0`
+   from that checkout, substituting the intended version.
+2. Create and push the matching tag yourself at the current main HEAD. For example,
+   after fetching main, inspect `git rev-parse origin/main`, then run
+   `git tag v1.0.0 <that-full-SHA>` and `git push origin refs/tags/v1.0.0`.
+   If the correct tag already exists, reuse it. If it points elsewhere, stop;
+   do not force, move or overwrite it. Prepare a new version/tag when needed.
+3. Open **Actions → Release → Run workflow**, select branch **main**, enter
+   the existing tag (for example `v1.0.0`), and press **Run workflow**. This is
+   the publication request; there is no second approval screen. After all
+   validations succeed, the workflow publishes the five installers/Workflow
+   files and `SHA256SUMS` automatically.
+
+Preflight requires `workflow_dispatch`, main, an existing commit tag exactly
+matching the dispatch's `github.sha`, matching SemVer/product versions, main
+ancestry and no existing Release (including drafts). API/authentication/network
+errors fail closed; only HTTP404 means no Release. Lightweight and annotated
+tags are supported. No script creates or moves tags.
+
+The dispatch SHA is main's HEAD **at dispatch time**. Every checkout and the
+reusable Test workflow use that immutable snapshot. Main can advance afterwards
+without changing the selected artifacts, as long as the snapshot remains in its
+history. Publication fetches fresh refs and repeats preflight so a moved tag or
+newly created Release is rejected before upload. It uses only this run's
+validated artifacts, verifies checksums and stages a draft before making it
+public. No Linux package is rebuilt by publish; only publish has write permission.
+
+If validation fails, no publication job runs. An upload/publication failure can
+leave an unpublished draft for the owner to inspect; retries reject that existing
+Release rather than overwriting it. Inspect or resolve it manually before retrying.
+Actual Release publication is not exercised by repository tests: they use
+isolated Git fixtures, mocked read-only GitHub responses and workflow policy checks.
+
 ## Shared Native v1 release gate
 
 `cargo test --workspace --locked` includes the canonical Native65, current validation boundaries, secure IPC/session and installation regressions. `python3 scripts/check-native-fixture.py` checks the canonical hash and immutable adoption metadata. Its optional `--kwel-root` verifies the original adoption checkout, not the latest parser. Kwel's `scripts/sync-native-fixture.mjs --check --upstream` checks its copy and source pin without modifying expectations; `--write --ref <full-public-Connect-SHA>` intentionally synchronizes all three canonical files and records hashes.
@@ -73,3 +114,14 @@ Before a formal Connect release, also review the matching successful private pai
 Unix installer security tests execute each fixture in a dedicated subprocess so another test's fork cannot briefly inherit its live file lock. Every original assertion still runs. Production locking and concurrent IPC tests remain unchanged; no retry, sleep or skip hides a lock failure.
 
 The shared corpus is checked out with LF on every OS via `.gitattributes`; Windows `core.autocrlf` must not change the bytes whose SHA-256 is recorded. Reference paths reject both POSIX and Windows roots, drive-relative paths and parent traversal on every platform.
+
+## Fixture commit references
+
+| Metadata | Meaning |
+| --- | --- |
+| Kwel's `tests/fixtures/local-connection/native-messaging-v1.source.json` | Pins the Connect commit tested by Kwel CI. Adoption of another commit is explicit. |
+| Connect's `crates/kwel-protocol/tests/fixtures/native-messaging-v1.source.json` | Records the Kwel commit from which the shared fixture was first adopted. It is historical provenance, not a moving latest-HEAD pin. |
+
+Changing the Release trigger updates neither Kwel's pin nor the adoption-origin
+SHA. The Release tag/dispatch SHA identifies a separate release snapshot. None of
+these Git references is a runtime Protocol field or a runtime dependency.
