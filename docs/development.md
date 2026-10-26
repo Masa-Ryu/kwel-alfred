@@ -18,6 +18,7 @@ cargo test --workspace --locked
 cargo audit --deny warnings
 python3 scripts/build.py package
 python3 scripts/build.py verify
+python3 -m unittest discover -s scripts/tests -v
 ```
 
 Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` additionally exercises actual package install/upgrade/removal only on disposable GitHub-hosted runners; it refuses ordinary local environments. Do not run installer tests against a real user home.
@@ -25,6 +26,20 @@ Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` ad
 macOS builds need both Darwin Rust targets, Xcode's `lipo`, `pkgbuild`, `productbuild`, the pinned LLVM tools component, and **resvg 0.45.1** (`cargo install resvg --version 0.45.1 --locked`). Windows packaging needs NSIS 3.11. Ubuntu packaging uses `dpkg-deb`. Install the audit tool with `cargo install cargo-audit --version 0.22.2 --locked`. These are development tools; end users install prebuilt packages.
 
 macOS builds all three executables for arm64/x86_64 and creates Universal binaries. Windows release builds explicitly target x64 MSVC with static CRT; package verification rejects references to separately installed Visual C++ runtime DLLs. Ubuntu debs declare their libc/libgcc dependencies. Alfred packages retain sorted ZIP entries, fixed timestamps, explicit Unix modes, the single tracked SVG source and required empty Profile ID configuration. Installer inputs are selected explicitly and never include prefs, caches, tokens or user data.
+
+## Runner and distribution compatibility
+
+Release producers are macOS 26 arm64, Windows Server 2025 x64, and Ubuntu 24.04 amd64/arm64. The macOS 26 Intel job also builds/tests both Universal slices but does not upload a release artifact. Rust 1.99.0, resvg 0.45.1, cargo-audit 0.22.2, NSIS 3.11 and the Action SHAs remain fixed.
+
+Each Darwin cross-build explicitly sets `MACOSX_DEPLOYMENT_TARGET`: **10.12 for x86_64**, **11.0 for arm64**, retaining the pre-update binary settings. `lipo` checks both slices; `vtool` checks their actual load-command minimum, including the binaries inside pkg and Workflow. The product's documented macOS 13+ requirement follows current Chrome support; older binary deployment targets alone do not establish Kwel/Chrome compatibility on obsolete OS versions. macOS 15 arm64/Intel jobs install the original macOS 26 arm64 producer's Universal pkg and execute its Host, JSON CLI and Workflow search binary. They do not rebuild those packages. macOS 13/14 runtime and real Chrome/Alfred UI remain manual checks.
+
+Linux release debs are built only on Ubuntu 24.04 and keep `Depends: libc6 (>= 2.39), libgcc-s1`. Verification extracts the actual deb payload/control archives and inspects Native Host, JSON CLI, preinst and prerm with readelf. Required numeric GLIBC symbol versions must not exceed 2.39; the known DT_RELR ABI marker is supported since 2.36. Unknown/private ABI requirements and undeclared shared-library dependencies fail verification.
+
+Ubuntu 26.04 amd64/arm64 jobs run source tests/builds separately, then download the corresponding **24.04-produced deb**, verify its producer/hash/ELF metadata, and install, communicate, reinstall and remove that unchanged file. No Ubuntu 26.04 build is uploaded or used for release. `BUILDINFO.json` records only product version, OS/architecture and package hashes. Collection checks producer roles and all hashes before assembling the same five distribution names and SHA256SUMS; build provenance is not an extra Release asset.
+
+Release producer artifacts are always transferred within the run to support these consumer tests, with one-day retention by default or two days for release/review runs. Compatibility consumers never upload release artifacts. The release collector's own runner can be Ubuntu 26.04 because it copies validated files without rebuilding Linux binaries.
+
+actionlint 1.7.12's bundled runner catalog does not yet include the two [official Ubuntu 26.04 labels](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). For that version, validate syntax with `actionlint -ignore '^label "ubuntu-26\.04(-arm)?" is unknown\.' .github/workflows/test.yml .github/workflows/release.yml`. Only those catalog false positives are excluded; actual hosted execution and installer/security checks remain required. No self-hosted label aliases are added.
 
 ## Versions and migration
 

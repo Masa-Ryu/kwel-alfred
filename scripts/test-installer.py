@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise real installers only in disposable GitHub-hosted user accounts."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -9,8 +10,10 @@ import struct
 import subprocess
 import sys
 import threading
+import tempfile
 import tomllib
 import uuid
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"]
@@ -29,7 +32,7 @@ def manifests(directory, binary):
         assert value["allowed_origins"] == [ORIGIN]
 
 
-def installed_protocol(host_binary, client_binary):
+def installed_protocol(host_binary, client_binary, workflow_cli=None):
     """Actual installed processes/IPC; a synthetic peer replaces Chrome only."""
     profile, reference = str(uuid.uuid4()), str(uuid.uuid4())
     host = subprocess.Popen([str(host_binary), ORIGIN], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -97,6 +100,14 @@ def installed_protocol(host_binary, client_binary):
         send({"v": 1, "type": "open-result", "requestId": request["requestId"], "ok": True})
         assert complete(opening)["ok"] is True
         assert complete(client("open", "--ref", reference), successful=False)["code"] == "RESULT_EXPIRED"
+        if workflow_cli:
+            alfred = subprocess.Popen([str(workflow_cli), "search", "--profile-id", profile, "--query", "Kyoto", "--limit", "20", "--format", "alfred"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            request = receive("search")
+            send({"v": 1, "type": "search-result", "requestId": request["requestId"], "items": items, "hasMore": False})
+            result = complete(alfred)
+            assert result["skipknowledge"] is True and result["items"][0]["arg"] == reference
+            assert result["items"][0]["variables"]["KWEL_RESULT_PROFILE_ID"] == profile
+            assert "uid" not in result["items"][0]
     finally:
         host.stdin.close()
         try:
@@ -112,8 +123,12 @@ def installed_protocol(host_binary, client_binary):
 def main():
     if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted":
         raise SystemExit("Installer tests require a disposable GitHub-hosted runner.")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--artifact-dir", type=Path, default=ROOT / "dist")
+    arguments = parser.parse_args()
+    artifacts = arguments.artifact_dir.resolve()
     if sys.platform == "darwin":
-        package = ROOT / "dist/KwelConnect-macos-universal.pkg"
+        package = artifacts / "KwelConnect-macos-universal.pkg"
         domains = run("installer", "-dominfo", "-pkg", package, capture_output=True, text=True).stdout
         assert "CurrentUserHomeDirectory" in domains
         root = Path.home() / "Library/Application Support/Kwel/NativeBridge"
@@ -121,7 +136,14 @@ def main():
         for _ in range(2):
             run("installer", "-pkg", package, "-target", "CurrentUserHomeDirectory")
         manifests(chrome, root / "bin/kwel-native-host")
-        installed_protocol(root / "bin/kwel-native-host", root / "bin/kwel-bridge")
+        with tempfile.TemporaryDirectory(prefix="kwel-alfred-compat-") as temporary:
+            workflow = Path(temporary).resolve()
+            with zipfile.ZipFile(artifacts / "Kwel.alfredworkflow") as archive:
+                for name in ("kwel-native-host", "kwel-bridge", "kwel-alfred"):
+                    binary = workflow / name
+                    binary.write_bytes(archive.read(name))
+                    binary.chmod(0o700)
+            installed_protocol(root / "bin/kwel-native-host", root / "bin/kwel-bridge", workflow / "kwel-alfred")
         run(root / "bin/kwel-native-host", "uninstall")
         assert not (root / "bin/kwel-native-host").exists()
         for name in HOSTS:
@@ -130,7 +152,7 @@ def main():
         import winreg
         root = Path(os.environ["LOCALAPPDATA"]) / "Kwel/NativeBridge"
         for _ in range(2):
-            run(ROOT / "dist/KwelConnect-windows-x64-setup.exe", "/S")
+            run(artifacts / "KwelConnect-windows-x64-setup.exe", "/S")
         manifests(root / "manifests", root / "bin/kwel-native-host.exe")
         for name in HOSTS:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, rf"Software\Google\Chrome\NativeMessagingHosts\{name}") as key:
@@ -146,7 +168,7 @@ def main():
                 pass
     else:
         architecture = {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
-        package = ROOT / f"dist/KwelConnect-ubuntu-{architecture}.deb"
+        package = artifacts / f"KwelConnect-ubuntu-{architecture}.deb"
         for _ in range(2):
             run("sudo", "dpkg", "--install", package)
         manifests(Path("/etc/opt/chrome/native-messaging-hosts"), Path("/usr/lib/kwel-connect/kwel-native-host"))

@@ -15,6 +15,7 @@ import sys
 import tempfile
 import tomllib
 import zipfile
+from compatibility import MACOS_TARGETS, verify_artifact, verify_linux_binary, verify_macos_binary, write_buildinfo
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
@@ -35,11 +36,12 @@ def build():
     environment["RUSTFLAGS"] = environment.get("RUSTFLAGS", "") + f" --remap-path-prefix={Path.home()}=/build --remap-path-prefix={ROOT}=."
     if sys.platform == "darwin":
         for target in ("aarch64-apple-darwin", "x86_64-apple-darwin"):
-            run("cargo", "build", "--workspace", "--release", "--locked", "--target", target, cwd=ROOT, env=environment)
+            target_environment = environment.copy()
+            target_environment["MACOSX_DEPLOYMENT_TARGET"] = MACOS_TARGETS["arm64" if target.startswith("aarch64") else "x86_64"]
+            run("cargo", "build", "--workspace", "--release", "--locked", "--target", target, cwd=ROOT, env=target_environment)
         for name in BINS:
             run("lipo", "-create", *(ROOT / "target" / target / "release" / name for target in ("aarch64-apple-darwin", "x86_64-apple-darwin")), "-output", destination / name)
-            for architecture in ("arm64", "x86_64"):
-                run("/usr/bin/lipo", destination / name, "-verify_arch", architecture)
+            verify_macos_binary(destination / name)
             (destination / name).chmod(0o700)
     else:
         if sys.platform == "win32":
@@ -208,8 +210,7 @@ def verify_workflow(path):
                 assert EXTENSION.encode() in data if name == "kwel-native-host" else True
                 assert str(Path.home()).encode() not in data
                 binary.write_bytes(data)
-                for architecture in ("arm64", "x86_64"):
-                    run("/usr/bin/lipo", binary, "-verify_arch", architecture)
+                verify_macos_binary(binary)
     print("Alfred graph, configuration, JSON CLI scripts, permissions and Universal binaries verified.")
 
 
@@ -242,40 +243,65 @@ def pe_dependencies(data, pe):
     raise ValueError("Unterminated PE import directory")
 
 
-def verify():
+def verify_linux_package(package):
+    architecture = {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
+    assert output_field(package, "Architecture") == architecture
+    assert output_field(package, "Version") == VERSION
+    assert output_field(package, "Depends") == "libc6 (>= 2.39), libgcc-s1"
+    run("dpkg-deb", "--info", package)
+    with tempfile.TemporaryDirectory(prefix="kwel-deb-verify-") as temporary:
+        stage = Path(temporary)
+        run("dpkg-deb", "--extract", package, stage)
+        run("dpkg-deb", "--control", package, stage / "DEBIAN")
+        for name in HOSTS:
+            manifest = json.loads((stage / f"etc/opt/chrome/native-messaging-hosts/{name}.json").read_text())
+            assert manifest["name"] == name and manifest["path"] == "/usr/lib/kwel-connect/kwel-native-host"
+            assert manifest["allowed_origins"] == [f"chrome-extension://{EXTENSION}/"]
+        binaries = ("usr/lib/kwel-connect/kwel-native-host", "usr/bin/kwel-bridge", "DEBIAN/preinst", "DEBIAN/prerm")
+        for name in binaries:
+            binary = stage / name
+            assert binary.is_file() and not binary.is_symlink() and stat.S_IMODE(binary.stat().st_mode) == 0o755
+            verify_linux_binary(binary, architecture)
+        host = (stage / binaries[0]).read_bytes()
+        assert all((stage / name).read_bytes() == host for name in ("DEBIAN/preinst", "DEBIAN/prerm"))
+
+
+def output_field(package, field):
+    return run("dpkg-deb", "--field", package, field, capture_output=True, text=True).stdout.strip()
+
+
+def verify(directory=DIST):
+    directory = Path(directory)
     if sys.platform == "darwin":
-        verify_workflow(DIST / "Kwel.alfredworkflow")
+        verify_workflow(directory / "Kwel.alfredworkflow")
         with tempfile.TemporaryDirectory(prefix="kwel-expand-") as temporary:
             expanded = Path(temporary) / "expanded"
-            run("pkgutil", "--expand-full", DIST / "KwelConnect-macos-universal.pkg", expanded)
+            run("pkgutil", "--expand-full", directory / "KwelConnect-macos-universal.pkg", expanded)
             distribution = (expanded / "Distribution").read_text()
             assert 'enable_currentUserHome="true"' in distribution and 'enable_localSystem="false"' in distribution and 'auth="none"' in distribution
+            payload = expanded / "component.pkg/Payload/Library/Application Support/Kwel/NativeBridge/installer-payload"
+            for name in BINS[:2]:
+                verify_macos_binary(payload / name)
     elif sys.platform == "win32":
-        installer = DIST / "KwelConnect-windows-x64-setup.exe"
+        installer = directory / "KwelConnect-windows-x64-setup.exe"
         assert installer.read_bytes()[:2] == b"MZ" and installer.stat().st_size > 100_000
         for name in BINS:
-            data = (DIST / "bin" / (name + ".exe")).read_bytes()
+            data = (directory / "bin" / (name + ".exe")).read_bytes()
             pe = struct.unpack_from("<I", data, 0x3C)[0]
             assert data[pe:pe + 4] == b"PE\0\0" and struct.unpack_from("<H", data, pe + 4)[0] == 0x8664
             assert not any(name.startswith(("vcruntime", "msvcp")) for name in pe_dependencies(data, pe)), "A separate Visual C++ runtime must not be required"
     else:
         architecture = {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
-        package = DIST / f"KwelConnect-ubuntu-{architecture}.deb"
+        package = directory / f"KwelConnect-ubuntu-{architecture}.deb"
         assert package.is_file()
-        for package in (package,):
-            run("dpkg-deb", "--info", package)
-            with tempfile.TemporaryDirectory(prefix="kwel-deb-verify-") as temporary:
-                run("dpkg-deb", "--extract", package, temporary)
-                for name in HOSTS:
-                    manifest = json.loads((Path(temporary) / f"etc/opt/chrome/native-messaging-hosts/{name}.json").read_text())
-                    assert manifest["name"] == name and manifest["path"] == "/usr/lib/kwel-connect/kwel-native-host"
-                    assert manifest["allowed_origins"] == [f"chrome-extension://{EXTENSION}/"]
+        verify_linux_package(package)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", choices=("build", "package", "workflow", "verify", "verify-workflow"))
+    parser.add_argument("operation", choices=("build", "package", "workflow", "verify", "verify-workflow", "verify-artifact"))
     parser.add_argument("path", nargs="?")
+    parser.add_argument("--artifact-name")
     arguments = parser.parse_args()
     if arguments.operation in ("build", "package", "workflow"):
         build()
@@ -283,10 +309,19 @@ def main():
         workflow()
     if arguments.operation == "package":
         {"darwin": macos, "win32": windows}.get(sys.platform, linux)()
+        files = {"darwin": ["KwelConnect-macos-universal.pkg", "Kwel.alfredworkflow"], "win32": ["KwelConnect-windows-x64-setup.exe"]}.get(sys.platform)
+        if files is None:
+            architecture = {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
+            files = [f"KwelConnect-ubuntu-{architecture}.deb"]
+        write_buildinfo(DIST, VERSION, files)
     elif arguments.operation == "verify":
-        verify()
+        verify(Path(arguments.path) if arguments.path else DIST)
     elif arguments.operation == "verify-workflow":
         verify_workflow(Path(arguments.path) if arguments.path else DIST / "Kwel.alfredworkflow")
+    elif arguments.operation == "verify-artifact":
+        if not arguments.path or not arguments.artifact_name:
+            parser.error("verify-artifact requires a directory and --artifact-name")
+        verify_artifact(arguments.path, arguments.artifact_name, VERSION)
 
 
 if __name__ == "__main__":

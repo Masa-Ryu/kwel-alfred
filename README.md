@@ -10,12 +10,14 @@ Kwelの検索をローカルアプリから使うための公式連携基盤で�
 
 | OS | インストーラー |
 | --- | --- |
-| macOS（Apple Silicon / Intel） | `KwelConnect-macos-universal.pkg` |
+| macOS 13以降（Apple Silicon / Intel） | `KwelConnect-macos-universal.pkg` |
 | Windows x64 | `KwelConnect-windows-x64-setup.exe` |
 | Ubuntu 24.04以降 amd64 | `KwelConnect-ubuntu-amd64.deb` |
 | Ubuntu 24.04以降 arm64 | `KwelConnect-ubuntu-arm64.deb` |
 
 macOSではpkgを開いて自分のホームフォルダへ、Windowsではexeを開いて現在のユーザーへインストールします。Ubuntuでは対応するdebをパッケージインストーラーで開きます。Host登録は自動で行われ、Rustのインストールは不要です。
+
+macOSの利用条件は[現行Chromeの対応OS](https://support.google.com/chrome/answer/95411)に合わせています。
 
 更新時は、使用中のChromeプロフィールでLocal IntegrationをOFFにしてからインストーラーを開き、更新後にONへ戻します。
 
