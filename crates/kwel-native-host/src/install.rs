@@ -3,7 +3,7 @@ use crate::{
     paths::{self, RuntimePaths},
     secure,
 };
-use kwel_protocol::{Code, EXTENSION_ID, Error, HOST_NAME, LEGACY_HOST_NAME, Result};
+use kwel_protocol::{Code, EXTENSION_ID, Error, HOST_NAME, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -16,12 +16,12 @@ use std::{
 pub struct Layout {
     pub root: PathBuf,
     pub manifests: PathBuf,
-    pub legacy_binary: PathBuf,
     #[cfg(windows)]
     pub registry: bool,
 }
 impl Layout {
     pub fn current() -> Result<Self> {
+        #[cfg(unix)]
         let home = paths::home()?;
         #[cfg(target_os = "macos")]
         return Ok(Self::for_home(&home));
@@ -35,8 +35,6 @@ impl Layout {
             Ok(Self {
                 root: base.join("Kwel/NativeBridge"),
                 manifests: base.join("Kwel/NativeBridge/manifests"),
-                legacy_binary: home
-                    .join("Library/Application Support/Kwel/AlfredBridge/bin/kwel-bridge"),
                 registry: true,
             })
         }
@@ -55,8 +53,6 @@ impl Layout {
         Self {
             root,
             manifests,
-            legacy_binary: home
-                .join("Library/Application Support/Kwel/AlfredBridge/bin/kwel-bridge"),
             #[cfg(windows)]
             registry: false,
         }
@@ -64,8 +60,8 @@ impl Layout {
     pub fn binary(&self) -> PathBuf {
         self.root.join("bin").join(paths::native_binary_name())
     }
-    pub fn manifest(&self, name: &str) -> PathBuf {
-        self.manifests.join(format!("{name}.json"))
+    pub fn manifest(&self) -> PathBuf {
+        self.manifests.join(format!("{HOST_NAME}.json"))
     }
     fn record(&self) -> PathBuf {
         self.root.join("install.json")
@@ -120,25 +116,18 @@ fn record(path: &Path) -> Result<Option<Record>> {
         Err(error) => Err(error.into()),
     }
 }
-fn preflight_manifest(layout: &Layout, name: &str) -> Result<()> {
-    let path = layout.manifest(name);
+fn preflight_manifest(layout: &Layout) -> Result<()> {
+    let path = layout.manifest();
     match fs::symlink_metadata(&path) {
         Ok(_) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
         Err(error) => return Err(error.into()),
     }
     let current: Manifest = serde_json::from_slice(&secure::read(&path)?)?;
-    let path_matches = current.path == layout.binary()
-        || (name == LEGACY_HOST_NAME
-            && current.path == layout.legacy_binary
-            && current.description == "Kwel Alfred Integration");
-    if current.name != name
+    if current.name != HOST_NAME
         || current.kind != "stdio"
-        || !path_matches
-        || !matches!(
-            current.description.as_str(),
-            "Kwel Local Connection" | "Kwel Local Integration" | "Kwel Alfred Integration"
-        )
+        || current.path != layout.binary()
+        || current.description != "Kwel Local Connection"
         || current.allowed_origins != [format!("chrome-extension://{EXTENSION_ID}/")]
     {
         return Err(Error(Code::InstallConflict));
@@ -146,12 +135,10 @@ fn preflight_manifest(layout: &Layout, name: &str) -> Result<()> {
     Ok(())
 }
 pub fn validate_registration(layout: &Layout) -> Result<()> {
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        preflight_manifest(layout, name)?;
-        #[cfg(windows)]
-        if layout.registry {
-            registry_preflight(name, &layout.manifest(name))?;
-        }
+    preflight_manifest(layout)?;
+    #[cfg(windows)]
+    if layout.registry {
+        registry_preflight(HOST_NAME, &layout.manifest())?;
     }
     Ok(())
 }
@@ -245,22 +232,17 @@ fn system_preflight(binary: &Path, client: &Path, manifests: &Path) -> Result<()
             return Err(Error(Code::InstallConflict));
         }
     }
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        let path = manifests.join(format!("{name}.json"));
-        if secure::exists(&path)? {
-            let manifest: Manifest = serde_json::from_slice(&secure::read(&path)?)?;
-            if previous.is_none()
-                || manifest.path != binary
-                || manifest.name != name
-                || !matches!(
-                    manifest.description.as_str(),
-                    "Kwel Local Connection" | "Kwel Local Integration"
-                )
-                || manifest.kind != "stdio"
-                || manifest.allowed_origins != [format!("chrome-extension://{EXTENSION_ID}/")]
-            {
-                return Err(Error(Code::InstallConflict));
-            }
+    let path = manifests.join(format!("{HOST_NAME}.json"));
+    if secure::exists(&path)? {
+        let manifest: Manifest = serde_json::from_slice(&secure::read(&path)?)?;
+        if previous.is_none()
+            || manifest.path != binary
+            || manifest.name != HOST_NAME
+            || manifest.description != "Kwel Local Connection"
+            || manifest.kind != "stdio"
+            || manifest.allowed_origins != [format!("chrome-extension://{EXTENSION_ID}/")]
+        {
+            return Err(Error(Code::InstallConflict));
         }
     }
     Ok(())
@@ -351,20 +333,18 @@ mod registry_tests {
 }
 fn write_registration(layout: &Layout) -> Result<()> {
     secure::ensure_dir(&layout.manifests)?;
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        let path = layout.manifest(name);
-        let manifest = Manifest {
-            name: name.into(),
-            description: "Kwel Local Connection".into(),
-            path: layout.binary(),
-            kind: "stdio".into(),
-            allowed_origins: vec![format!("chrome-extension://{EXTENSION_ID}/")],
-        };
-        secure::atomic_write(&path, &serde_json::to_vec_pretty(&manifest)?, false)?;
-        #[cfg(windows)]
-        if layout.registry {
-            registry_register(name, &path)?;
-        }
+    let path = layout.manifest();
+    let manifest = Manifest {
+        name: HOST_NAME.into(),
+        description: "Kwel Local Connection".into(),
+        path: layout.binary(),
+        kind: "stdio".into(),
+        allowed_origins: vec![format!("chrome-extension://{EXTENSION_ID}/")],
+    };
+    secure::atomic_write(&path, &serde_json::to_vec_pretty(&manifest)?, false)?;
+    #[cfg(windows)]
+    if layout.registry {
+        registry_register(HOST_NAME, &path)?;
     }
     Ok(())
 }
@@ -514,24 +494,20 @@ pub fn uninstall(layout: &Layout, runtime: &RuntimePaths) -> Result<()> {
             return Err(Error(Code::HostInUse));
         }
     }
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        let path = layout.manifest(name);
-        if secure::exists(&path)? {
-            let manifest: Manifest = serde_json::from_slice(&secure::read(&path)?)?;
-            if manifest.path == layout.binary() {
-                #[cfg(windows)]
-                if layout.registry {
-                    registry_unregister(name, &path)?;
-                }
-                secure::remove_regular(&path)?;
-            }
+    let path = layout.manifest();
+    if secure::exists(&path)? {
+        preflight_manifest(layout)?;
+        #[cfg(windows)]
+        if layout.registry {
+            registry_unregister(HOST_NAME, &path)?;
         }
+        secure::remove_regular(&path)?;
     }
     for name in installed.binaries.keys() {
         secure::remove_regular(&layout.root.join("bin").join(name))?;
     }
     secure::remove_regular(&layout.record())?;
-    // Keep runtime/legacy data and unrelated files. The Workflow never calls
+    // Keep runtime data and unrelated files. The Workflow never calls
     // this function on its removal, so other launcher installations remain.
     Ok(())
 }

@@ -95,12 +95,12 @@ fn null_request_id_is_only_an_uncorrelated_native_error() {
         }
         assert!(decode(&serde_json::to_vec(&value).unwrap()).is_err());
     }
-    let legacy = decode(br#"{"v":1,"type":"error","code":"BAD_REQUEST"}"#).unwrap();
+    let omitted = decode(br#"{"v":1,"type":"error","code":"BAD_REQUEST"}"#).unwrap();
     assert_eq!(
-        serde_json::to_value(&legacy).unwrap()["requestId"],
+        serde_json::to_value(&omitted).unwrap()["requestId"],
         Value::Null
     );
-    assert!(legacy.response("r", false, 20).is_err());
+    assert!(omitted.response("r", false, 20).is_err());
     assert!(decode(br#"{"v":1,"type":"error","requestId":"","code":"BAD_REQUEST"}"#).is_err());
     let response =
         decode(br#"{"v":1,"type":"search-result","requestId":"one","items":[],"hasMore":false}"#)

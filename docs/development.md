@@ -9,15 +9,10 @@
 | `kwel-client` | language-neutral JSON CLI and public protocol client |
 | `kwel-alfred` | official Alfred JSON, connection retry and Chrome activation |
 
-Use the Rust toolchain pinned by `rust-toolchain.toml`. Cargo.lock is committed. Tokio is used for bounded asynchronous Named Pipe/Unix socket I/O, cancellation and timeouts; no unbounded per-connection thread model is used. Windows FFI is isolated. Product executables have no Go dependency.
+Use the Rust toolchain pinned by `rust-toolchain.toml`. Cargo.lock is committed. Tokio is used for bounded asynchronous Named Pipe/Unix socket I/O, cancellation and timeouts; no unbounded per-connection thread model is used. Windows FFI is isolated.
 
 ```sh
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --locked -- -D warnings
-cargo test --workspace --locked
-cargo audit --deny warnings
-python3 scripts/build.py package
-python3 scripts/build.py verify
+bash scripts/verify.sh
 python3 -m unittest discover -s scripts/tests -v
 cargo build -p kwel-protocol --example native-conformance --locked
 node scripts/test-kwel-parser.cjs /path/to/current/kwel-checkout --current-kwel
@@ -26,7 +21,7 @@ node --test scripts/tests/chrome-e2e.test.mjs
 
 Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` additionally exercises actual package install/upgrade/removal only on disposable GitHub-hosted runners; it refuses ordinary local environments. Do not run installer tests against a real user home.
 
-The current Kwel parser comparison runs in Kwel's private CI against the public Connect commit pinned in Kwel's `tests/fixtures/local-connection/native-messaging-v1.source.json`. Both checkouts are immutable for the run; fixture, specification and schema hashes are checked before executing the real TypeScript/Zod parser/builders and actual Rust frames. This avoids giving public PRs credentials to private source. The adapter checks all 65 shared cases plus 12 Unicode boundaries, including lone-surrogate rejection. No test changes the search engine or fixture expectations. The 81 Go-derived cases retain their original verdicts and normalized JSON through a test-only historical codec, separate from production Native rules.
+The current Kwel parser comparison runs in Kwel's private CI against the public Connect commit pinned in Kwel's `tests/fixtures/local-connection/native-messaging-v1.source.json`. Both checkouts are immutable for the run; fixture, specification and schema hashes are checked before executing the real TypeScript/Zod parser/builders and actual Rust frames. This avoids giving public PRs credentials to private source. The adapter checks all 65 shared cases plus 12 Unicode boundaries, including lone-surrogate rejection. No test changes the search engine or fixture expectations. For a local review of a newer Connect commit against the same corpus, add `--review-current`: it verifies Kwel's recorded source hashes from its immutable ancestor commit and runs the current Rust adapter. CI rejects this review mode and still requires its exact pair pin. Update the Kwel pin explicitly before coordinated release; editing only Connect does not update that private CI.
 
 For real Chrome-launched Host, two-profile history/ranking/openRef and OS approval checks, use [the E2E verifier and manual sign-off procedure](chrome-e2e.md). Node/CDP guard tests, parser tests and the installed synthetic-peer test are not real Chrome/Alfred E2E and must never be reported as such.
 
@@ -48,17 +43,28 @@ Release producer artifacts are always transferred within the run to support thes
 
 actionlint 1.7.12's bundled runner catalog does not yet include the two [official Ubuntu 26.04 labels](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). For that version, validate syntax with `actionlint -ignore '^label "ubuntu-26\.04(-arm)?" is unknown\.' .github/workflows/test.yml .github/workflows/release.yml`. Only those catalog false positives are excluded; actual hosted execution and installer/security checks remain required. No self-hosted label aliases are added.
 
-## Versions and migration
+## First release and development installations
 
-The original `1.00` Workflow display version maps to SemVer **1.0.0**; new release tags are `v1.0.0` and later. No repository tags or Releases existed when this migration was inspected; no historical tag is renamed or deleted. `scripts/check-release-version.py` compares the tag, Cargo, distribution config and Workflow version. Release publication requires the tagged commit already be on main and refuses an existing Release.
+Kwel Connect 1.0.0, implemented in Rust, is the first formal release. Before removing development-only Go
+compatibility, the GitHub API was checked on 2026-10-26: no tags, Releases,
+Release assets or Release workflow runs existed. The old README described local
+builds only. This establishes the repository's visible distribution history,
+not the absence of private developer copies.
 
-The GitHub repository was renamed in place to `Masa-Ryu/kwel-connect`; existing history, Issue #2 and PR #1 remain. Canonical URLs use the new name. The Alfred bundle ID `com.kwel.alfred.search` is intentionally stable for preference/import compatibility; the Native Host has the new canonical name and a legacy alias.
+The display version `1.00` maps to SemVer `1.0.0`; release tags are `v1.0.0`
+and later. No historical tags are renamed or deleted. Release preflight requires
+a main commit and matching Cargo/config/Workflow version; publication refuses
+existing Releases. The repository was renamed in place, retaining history,
+Issue #2 and PR #1. `com.kwel.alfred.search` remains the Alfred bundle ID.
 
-Issue #2 originally requested a research-only RFC. The implementation request supersedes that scope. The original Go CI baseline passed static analysis and race tests before migration. Rust's protocol/security/registration/installer tests passed on all five requested hosted runners before Go removal. The retained fixtures compare 81 original Go validation/normalization cases, including UTF-16 limits, framing, URL authority/escaping and IPv6 zones. No Go toolchain is used by the final build or tests. Final CI evidence and remaining real-app checks are recorded in PR #1 and Issue #2.
+Developers with an old local Host must follow the [one-time manual replacement
+procedure](development-host-replacement.md). The product registers only
+`com.kwel.bridge`; there is no old-Host socket discovery, fallback, coordination
+or registration rewrite.
 
 ## Shared Native v1 release gate
 
-`cargo test --workspace --locked` includes the canonical Native65 and unchanged historical Go81 cases. `python3 scripts/check-native-fixture.py` checks the canonical hash and immutable adoption metadata. Its optional `--kwel-root` verifies the original adoption checkout, not the latest parser. Kwel's `scripts/sync-native-fixture.mjs --check --upstream` checks its copy and source pin without modifying expectations; `--write --ref <full-public-Connect-SHA>` intentionally synchronizes all three canonical files and records hashes.
+`cargo test --workspace --locked` includes the canonical Native65, current validation boundaries, secure IPC/session and installation regressions. `python3 scripts/check-native-fixture.py` checks the canonical hash and immutable adoption metadata. Its optional `--kwel-root` verifies the original adoption checkout, not the latest parser. Kwel's `scripts/sync-native-fixture.mjs --check --upstream` checks its copy and source pin without modifying expectations; `--write --ref <full-public-Connect-SHA>` intentionally synchronizes all three canonical files and records hashes.
 
 The public Connect Test workflow's canonical-corpus job and all OS Rust tests are required by Release's reusable `validate`. Kwel's required hosted **Native v1 pair** job tests its current PR parser against its pinned Connect source, builds the real Host/CLI and production extension, then runs Google Chrome search/open in two disposable profiles. Failed, cancelled, skipped or missing pair results block Kwel's `Verify` and automatic Release. The original application suites on N100 and full local pre-push gate are unchanged. Actions remain SHA-pinned, with read-only PR permissions and no pair-test secrets or artifact uploads.
 
@@ -67,11 +73,3 @@ Before a formal Connect release, also review the matching successful private pai
 Unix installer security tests execute each fixture in a dedicated subprocess so another test's fork cannot briefly inherit its live file lock. Every original assertion still runs. Production locking and concurrent IPC tests remain unchanged; no retry, sleep or skip hides a lock failure.
 
 The shared corpus is checked out with LF on every OS via `.gitattributes`; Windows `core.autocrlf` must not change the bytes whose SHA-256 is recorded. Reference paths reject both POSIX and Windows roots, drive-relative paths and parent traversal on every platform.
-
-The macOS read-only adapter for an already-running Go Host has a private closed
-response type in `crates/kwel-client/src/legacy.rs`. It serializes routed Local
-requests directly and accepts the old probe shape / omitted empty result array
-only on that existing legacy socket. Its stream regression fails with the
-Native-only codec and now covers probe, empty search and open. Wrong IDs,
-versions, routing fields and management responses remain rejected. Production
-Native decoding never acquires these exceptions. No Go source/toolchain is used.

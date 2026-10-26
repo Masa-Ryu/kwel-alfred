@@ -6,7 +6,7 @@ use kwel_native_host::{
     paths::{self, RuntimePaths},
     secure,
 };
-use kwel_protocol::{Code, EXTENSION_ID, Error, HOST_NAME, LEGACY_HOST_NAME};
+use kwel_protocol::{Code, EXTENSION_ID, Error};
 use std::fs;
 #[cfg(unix)]
 use std::path::Path;
@@ -55,44 +55,22 @@ fn installation_is_idempotent_exact_origin_and_removes_only_owned_files() {
     let (_temp, layout, runtime, source) = fixture();
     assert!(install::install(&source, &layout, &runtime, false).unwrap());
     assert!(!install::install(&source, &layout, &runtime, false).unwrap());
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        let value: Manifest =
-            serde_json::from_slice(&secure::read(&layout.manifest(name)).unwrap()).unwrap();
-        assert_eq!(value.path, layout.binary());
-        assert_eq!(value.description, "Kwel Local Connection");
-        assert_eq!(
-            value.allowed_origins,
-            vec![format!("chrome-extension://{EXTENSION_ID}/")]
-        );
-    }
+    let value: Manifest =
+        serde_json::from_slice(&secure::read(&layout.manifest()).unwrap()).unwrap();
+    assert_eq!(value.path, layout.binary());
+    assert_eq!(value.description, "Kwel Local Connection");
+    assert_eq!(
+        value.allowed_origins,
+        vec![format!("chrome-extension://{EXTENSION_ID}/")]
+    );
     let unrelated = layout.root.join("other-launcher-data");
     secure::atomic_write(&unrelated, b"retain", false).unwrap();
     install::uninstall(&layout, &runtime).unwrap();
     assert!(unrelated.exists());
     assert!(!layout.binary().exists());
-    assert!(!layout.manifest(HOST_NAME).exists());
+    assert!(!layout.manifest().exists());
 }
 
-#[test]
-fn previous_local_integration_description_is_safely_updated() {
-    if isolated("previous_local_integration_description_is_safely_updated") {
-        return;
-    }
-    let (_temp, layout, runtime, source) = fixture();
-    install::install(&source, &layout, &runtime, false).unwrap();
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        let path = layout.manifest(name);
-        let mut manifest: Manifest = serde_json::from_slice(&secure::read(&path).unwrap()).unwrap();
-        manifest.description = "Kwel Local Integration".into();
-        secure::atomic_write(&path, &serde_json::to_vec(&manifest).unwrap(), false).unwrap();
-    }
-    assert!(!install::install(&source, &layout, &runtime, false).unwrap());
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        let manifest: Manifest =
-            serde_json::from_slice(&secure::read(&layout.manifest(name)).unwrap()).unwrap();
-        assert_eq!(manifest.description, "Kwel Local Connection");
-    }
-}
 #[test]
 fn session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse() {
     if isolated("session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse") {
@@ -185,7 +163,7 @@ fn unrecognized_manifests_and_modified_binaries_are_never_overwritten_or_removed
     }
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
-    let path = layout.manifest(HOST_NAME);
+    let path = layout.manifest();
     let before = secure::read(&path).unwrap();
     let mut value: Manifest = serde_json::from_slice(&before).unwrap();
     value.path = layout.root.join("different-product");
@@ -193,62 +171,52 @@ fn unrecognized_manifests_and_modified_binaries_are_never_overwritten_or_removed
     assert!(install::install(&source, &layout, &runtime, false).is_err());
     assert!(install::uninstall(&layout, &runtime).is_err());
     assert!(layout.binary().exists());
+    for field in ["name", "description", "type", "allowed_origins"] {
+        let mut manifest: Manifest = serde_json::from_slice(&before).unwrap();
+        match field {
+            "name" => manifest.name = "com.other.host".into(),
+            "description" => manifest.description = "unrecognized registration".into(),
+            "type" => manifest.kind = "unknown".into(),
+            _ => {
+                manifest.allowed_origins =
+                    vec!["chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/".into()]
+            }
+        }
+        let bytes = serde_json::to_vec(&manifest).unwrap();
+        secure::atomic_write(&path, &bytes, false).unwrap();
+        assert!(install::install(&source, &layout, &runtime, false).is_err());
+        assert!(install::uninstall(&layout, &runtime).is_err());
+        assert_eq!(secure::read(&path).unwrap(), bytes);
+    }
     secure::atomic_write(&path, &before, false).unwrap();
     secure::atomic_write(&layout.binary(), b"unrecognized replacement", true).unwrap();
     assert!(install::install(&source, &layout, &runtime, false).is_err());
     assert!(install::uninstall(&layout, &runtime).is_err());
 }
 #[test]
-fn local_connection_description_preserves_recognized_previous_registrations() {
-    if isolated("local_connection_description_preserves_recognized_previous_registrations") {
+fn noncanonical_registration_and_executable_are_left_untouched() {
+    if isolated("noncanonical_registration_and_executable_are_left_untouched") {
         return;
     }
     let (_temp, layout, runtime, source) = fixture();
-    install::install(&source, &layout, &runtime, false).unwrap();
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        let path = layout.manifest(name);
-        let mut manifest: Manifest = serde_json::from_slice(&secure::read(&path).unwrap()).unwrap();
-        assert_eq!(manifest.description, "Kwel Local Connection");
-        manifest.description = "Kwel Local Integration".into();
-        secure::atomic_write(&path, &serde_json::to_vec(&manifest).unwrap(), false).unwrap();
-    }
-    install::validate_registration(&layout).unwrap();
-    install::install(&source, &layout, &runtime, false).unwrap();
-    for name in [HOST_NAME, LEGACY_HOST_NAME] {
-        let manifest: Manifest =
-            serde_json::from_slice(&secure::read(&layout.manifest(name)).unwrap()).unwrap();
-        assert_eq!(manifest.description, "Kwel Local Connection");
-    }
-}
-
-#[test]
-fn legacy_registration_migrates_without_deleting_legacy_binary() {
-    if isolated("legacy_registration_migrates_without_deleting_legacy_binary") {
-        return;
-    }
-    let (_temp, layout, runtime, source) = fixture();
-    secure::atomic_write(&layout.legacy_binary, b"legacy bridge fixture", true).unwrap();
-    let old = Manifest {
-        name: LEGACY_HOST_NAME.into(),
+    let old_binary = source.join("unmanaged-bridge");
+    secure::atomic_write(&old_binary, b"unmanaged executable", true).unwrap();
+    let foreign = layout.manifests.join("com.kwel.alfred.json");
+    let before = serde_json::to_vec(&Manifest {
+        name: "com.kwel.alfred".into(),
         description: "Kwel Alfred Integration".into(),
-        path: layout.legacy_binary.clone(),
+        path: old_binary.clone(),
         kind: "stdio".into(),
         allowed_origins: vec![format!("chrome-extension://{EXTENSION_ID}/")],
-    };
-    secure::atomic_write(
-        &layout.manifest(LEGACY_HOST_NAME),
-        &serde_json::to_vec(&old).unwrap(),
-        false,
-    )
+    })
     .unwrap();
+    secure::atomic_write(&foreign, &before, false).unwrap();
     install::install(&source, &layout, &runtime, false).unwrap();
-    let updated: Manifest =
-        serde_json::from_slice(&secure::read(&layout.manifest(LEGACY_HOST_NAME)).unwrap()).unwrap();
-    assert_eq!(updated.path, layout.binary());
-    assert_eq!(
-        fs::read(&layout.legacy_binary).unwrap(),
-        b"legacy bridge fixture"
-    );
+    assert_eq!(secure::read(&foreign).unwrap(), before);
+    install::uninstall(&layout, &runtime).unwrap();
+    assert_eq!(secure::read(&foreign).unwrap(), before);
+    assert_eq!(fs::read(old_binary).unwrap(), b"unmanaged executable");
+    assert!(!layout.manifest().exists());
 }
 #[tokio::test]
 async fn in_use_host_is_never_deleted() {
@@ -333,11 +301,7 @@ fn symlink_and_foreign_owner_checks_fail_closed() {
     use std::os::unix::{fs::PermissionsExt, fs::symlink};
     let (_temp, layout, runtime, source) = fixture();
     secure::ensure_dir(&layout.manifests).unwrap();
-    symlink(
-        source.join(paths::native_binary_name()),
-        layout.manifest(HOST_NAME),
-    )
-    .unwrap();
+    symlink(source.join(paths::native_binary_name()), layout.manifest()).unwrap();
     assert!(install::install(&source, &layout, &runtime, false).is_err());
     let redirect = layout.root.join("redirect");
     symlink(&source, &redirect).unwrap();

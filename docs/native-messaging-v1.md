@@ -1,6 +1,6 @@
 # Native Messaging Protocol v1
 
-Canonical Host: `com.kwel.bridge`. The compatibility registration `com.kwel.alfred` points to the same Rust executable for older extensions. Enable **Local Connection** in current Kwel Settings. Native Messaging and the [Local Client Protocol](local-client-protocol-v1.md) have separate validators and wire shapes.
+Host name: `com.kwel.bridge`. Enable **Local Connection** in current Kwel Settings. Native Messaging and the [Local Client Protocol](local-client-protocol-v1.md) have separate validators and wire shapes.
 
 The executable accepts the Chrome-supplied `chrome-extension://<extension-id>/` origin as its first argument. Both manifests and Host origin validation admit exactly the configured Kwel extension ID. A developer-loaded extension with a different ID requires a separate local build; IDs are never discovered and trusted automatically.
 
@@ -36,15 +36,15 @@ Search always serializes `query`, including an empty string:
 
 An omitted query is invalid. A missing limit decodes as 20; explicit zero, negative, fractional and >100 values are invalid. This is separate from the public Local Client request, which requires a profile ID and an explicit limit. No default or field is silently copied from the Local Client representation into the Native channel.
 
-Each result item contains `title`, `url`, `domain`, and `openRef`. Titles are nonblank and URLs are HTTP(S) with a hostname; result references use hyphenated RFC-variant UUIDs, versions 1–8. Empty results serialize `items: []`, never omit the array. Order is preserved. The Native open request treats a reference as an opaque nonempty string of at most 100 UTF-16 units, matching Kwel's lookup boundary. The public client API separately requires a UUID, and Kwel rechecks its own reference table before opening. A URL is never accepted as an open operation.
+Each result item contains `title`, `url`, `domain`, and `openRef`. Titles are nonblank and URLs are HTTP(S) with a hostname; result references use hyphenated RFC-variant UUIDs, versions 1–8. Empty results serialize `items: []`, never omit the array. Order is preserved. Result URLs use standard WHATWG parsing with explicit HTTP(S) authority, valid host/port and strict guards against control characters, backslash repair, encoded hostnames, non-ASCII userinfo, and malformed path/fragment escapes. IPv6 literals are supported; scoped IPv6 zone identifiers are not. Validation never rewrites returned URLs. The Native open request treats a reference as an opaque nonempty string of at most 100 UTF-16 units, matching Kwel's lookup boundary. The public client API separately requires a UUID, and Kwel rechecks its own reference table before opening. A URL is never accepted as an open operation.
 
-Kwel emits `BAD_REQUEST`, `INCOMPATIBLE_VERSION`, `NOT_READY`, `RESULT_EXPIRED`, `OPEN_FAILED`, and `SEARCH_FAILED`. The legacy Native error vocabulary also retains `INVALID_REQUEST`, `PROFILE_CONFLICT`, `HOST_NOT_FOUND`, `DISCONNECTED`, `TIMEOUT`, and `PERMISSION_REQUIRED`. Local installation/resource errors (`BUSY`, `UNSAFE_PATH`, `INSTALL_CONFLICT`, `DOWNGRADE_REFUSED`, `HOST_IN_USE`) remain outside the Native wire.
+Kwel emits `BAD_REQUEST`, `INCOMPATIBLE_VERSION`, `NOT_READY`, `RESULT_EXPIRED`, `OPEN_FAILED`, and `SEARCH_FAILED`. The Host also uses `INVALID_REQUEST`, `PROFILE_CONFLICT`, `HOST_NOT_FOUND`, `DISCONNECTED`, `TIMEOUT`, and `PERMISSION_REQUIRED`. Local installation/resource errors (`BUSY`, `UNSAFE_PATH`, `INSTALL_CONFLICT`, `DOWNGRADE_REFUSED`, `HOST_IN_USE`) remain outside the Native wire.
 
 ## Correlation and uncorrelated errors
 
 Normal search/open responses require a nonempty request ID exactly matching their pending Native request. The Host generates a distinct Native ID for each request and restores the caller's local ID only after validation. Unknown IDs never consume a different pending request.
 
-The Host accepts `requestId: null` on `error`. A legacy omitted error ID has the same uncorrelated-notice meaning; serialization emits explicit `null`. An empty string ID is rejected. An uncorrelated notice is ignored by response dispatch: it cannot satisfy a search, open or probe, consume a pending entry, renew a deadline, or be assigned to an arbitrary waiting client. `Message::response()` rejects an uncorrelated error even if the caller supplies an empty expected ID.
+The Host accepts `requestId: null` on `error`. An omitted error ID has the same uncorrelated-notice meaning; serialization emits explicit `null`. An empty string ID is rejected. An uncorrelated notice is ignored by response dispatch: it cannot satisfy a search, open or probe, consume a pending entry, renew a deadline, or be assigned to an arbitrary waiting client. `Message::response()` rejects an uncorrelated error even if the caller supplies an empty expected ID.
 
 ```json
 {"v":1,"type":"error","requestId":null,"code":"BAD_REQUEST","message":"Invalid request."}
@@ -64,7 +64,7 @@ openRefs expire after five minutes, are consumed once before opening and stay wi
 
 Rust tests load this JSON directly, and the public Connect CI verifies its hash and adoption provenance. Kwel is a private repository: its required **Native v1 pair** CI checks out the immutable public Connect commit recorded beside its copy, verifies the fixture/spec/schema hashes, and runs both implementations against the same JSON. It also sends actual Rust-encoded frames through the current Kwel parser. No private source or cross-repository secret is exported to this repository. Kwel's `Verify` and automatic Release require that pair check to succeed. Connect's reusable Release validation requires the canonical Rust tests; a coordinated real-pair sign-off remains a separate prerequisite before publishing a formal Connect release.
 
-All 81 archived Go-reference cases remain in `crates/kwel-protocol/tests/fixtures/go-v1.json`. They are historical input data, not the normative wire schema. A test-only historical codec snapshot preserves every original verdict and normalized JSON value, including obsolete omissions/routing; it exercises maintained validation helpers and the Local Client validator for routed open requests. The production Native codec never uses that snapshot: its separate 65-case suite requires empty query/items explicitly and enforces the Native-only fields. No Go toolchain or Go source is needed.
+Additional Rust validation tests cover URL authorities, IPv6, Unicode/length limits, malformed JSON, framing and forbidden management operations. These tests use current Native/Local types; no historical codec or omitted-query/items behavior is retained.
 
 Protocol conformance and synthetic Native/IPC tests do not establish actual Chrome/Alfred UI behavior, installer approval prompts or user-profile compatibility. Keep those manual/OS checks distinct from CI and coordinate the Kwel/Host release.
 

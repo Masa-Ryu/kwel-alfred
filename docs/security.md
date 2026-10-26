@@ -18,7 +18,7 @@ Profile IDs must match the selected endpoint. The Host scopes pending responses 
 
 The internal coordination token is owner-only and absent from the public schema. It prevents ordinary API clients invoking management by sending undocumented operations. It does not claim isolation from a malicious process with full access to the same user account. Rejected duplicate leases have a bounded lifetime to recover safely from crashes.
 
-## Installation and migration
+## Installation
 
 macOS installs in the current user's `Library/Application Support/Kwel/NativeBridge`; Windows uses LocalAppData plus HKCU. Ubuntu debs install root-owned binaries and Google Chrome's documented system manifest location; each spawned Host still executes as Chrome's user and creates user-isolated IPC. Installers do not inspect Chrome profiles or browsing databases, or store/transmit profile IDs. They inspect owned runtime lock metadata only for in-use protection.
 
@@ -26,7 +26,7 @@ Registration is preflighted, recognized product/version metadata is checked, and
 
 macOS copy uses `ditto --rsrc --extattr --acl`; quarantine is not stripped. Tests retain source quarantine flags, extended attributes and resource forks. No installer disables Gatekeeper, SmartScreen, UAC, Defender or browser permission checks. Distributions are unsigned and unnotarized; OS approval/reputation limitations still apply.
 
-Both `com.kwel.bridge` and the legacy `com.kwel.alfred` registration point to the shared Host. Old AlfredBridge files are not blindly deleted. A read-only v1 adapter can finish using an already-running legacy socket until Kwel reconnects; the Workflow's stable bundle ID preserves its Profile ID preference. The old process retains its old IPC behavior until it exits. If migration coordination crashes while that Go process holds a duplicate claim, reconnecting Kwel is required to clear the old process's non-expiring claim. New Rust sessions use expiring leases. Removing the Workflow never calls Host uninstall. Explicit Host uninstall refuses an active shared Host and removes only recognized files/registrations, retaining runtime/legacy/unrelated data.
+Only `com.kwel.bridge` is registered. Removing the Workflow never calls Host uninstall. Explicit uninstall refuses active sessions and removes only recognized product files/registration, retaining runtime and unrelated data. Development builds installed before the first Rust release require the [one-time manual replacement procedure](development-host-replacement.md); no runtime adapter, old endpoint discovery or automatic migration is provided. The Alfred bundle ID stays `com.kwel.alfred.search`.
 
 ## CI and release boundary
 
@@ -34,4 +34,4 @@ All PR execution uses the requested five GitHub-hosted OS/architecture runners, 
 
 Only the Release publication job has write permission. Tags must match the SemVer distribution and name a commit reachable from main. Every platform validates its installer before release collection; publication refuses existing releases and uploads to an unpublished draft before making it public. A failed upload leaves an unpublished draft for review, and retries refuse overwrites.
 
-Unit/integration fixtures and hosted installer checks do not establish real Kwel/Chrome/Alfred/Gatekeeper/SmartScreen behavior. Human end-to-end checks are reported separately in the migration report.
+Unit/integration fixtures and hosted installer checks do not establish real Kwel/Chrome/Alfred/Gatekeeper/SmartScreen behavior. Real browser and manual OS checks follow [the E2E procedure](chrome-e2e.md).

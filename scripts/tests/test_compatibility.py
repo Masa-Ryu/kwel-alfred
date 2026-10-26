@@ -68,7 +68,7 @@ class BinaryCompatibility(unittest.TestCase):
                     file.parent.mkdir(parents=True, exist_ok=True)
                     file.write_bytes(b"host fixture")
                     file.chmod(0o755)
-                for name in build.HOSTS:
+                for name in (build.HOST_NAME,):
                     file = root / f"etc/opt/chrome/native-messaging-hosts/{name}.json"
                     file.parent.mkdir(parents=True, exist_ok=True)
                     file.write_text(json.dumps({"name": name, "path": "/usr/lib/kwel-connect/kwel-native-host", "allowed_origins": [f"chrome-extension://{build.EXTENSION}/"]}))

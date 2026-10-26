@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Masa-Ryu/kwel-connect/raw/main/docs/schemas/native-messaging-v1.schema.json",
   "title": "Kwel Native Messaging v1",
-  "description": "Native-only wire shapes. x-utf16-maxLength is normative; standard maxLength counts Unicode code points. Transport enforces 1\u20131,000,000 UTF-8 bytes. Local Client routing is a separate protocol.",
+  "description": "Native-only wire shapes. x-utf16-maxLength is normative; standard maxLength counts Unicode code points. Transport enforces 1–1,000,000 UTF-8 bytes. Local Client routing is a separate protocol.",
   "$defs": {
     "requestId": {
       "type": "string",
@@ -54,7 +54,7 @@
         "url": {
           "type": "string",
           "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
-          "description": "HTTP(S), hostname and escaping are checked by the native validators."
+          "description": "HTTP(S) result data. Standard URL parsing and the authority/escaping guards in Native v1 remain normative; validation never rewrites the value."
         },
         "domain": {
           "type": "string"
@@ -291,7 +291,7 @@
             }
           ],
           "default": null,
-          "description": "Null or legacy omission is an uncorrelated notice; neither may satisfy a pending request."
+          "description": "Null or omission is an uncorrelated notice; neither may satisfy a pending request."
         },
         "code": {
           "enum": [

@@ -124,16 +124,6 @@ pub fn client_binary_name() -> &'static str {
         "kwel-bridge"
     }
 }
-pub fn legacy_directory() -> Option<PathBuf> {
-    #[cfg(target_os = "macos")]
-    {
-        Some(PathBuf::from(format!("/private/tmp/kwa-{}", secure::uid())))
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        None
-    }
-}
 pub fn valid_absolute(path: &Path) -> bool {
     path.is_absolute()
         && !path

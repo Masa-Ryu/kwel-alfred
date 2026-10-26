@@ -385,10 +385,6 @@ pub async fn run_transport(
     hello.native()?;
     hello.hello()?;
     let profile = hello.profile_id.to_lowercase();
-    #[cfg(target_os = "macos")]
-    if legacy_conflict(&profile, &mut input).await? {
-        return Err(Error(Code::ProfileConflict));
-    }
     let lock = secure::lock(&paths.file(&profile, "lock")?)?;
     if lock.try_lock().is_err() {
         let token = String::from_utf8(secure::read(&paths.file(&profile, "token")?)?)
@@ -454,59 +450,6 @@ pub async fn run_transport(
     secure::remove_regular(&paths.file(&profile, "endpoint")?)?;
     drop(lock);
     result
-}
-
-// Migration-only coordination with the owned Go socket. This never exposes an
-// old management operation through the new public endpoint or client schema.
-#[cfg(target_os = "macos")]
-async fn legacy_conflict(
-    profile: &str,
-    input: &mut mpsc::Receiver<Result<Message>>,
-) -> Result<bool> {
-    let Some(directory) = crate::paths::legacy_directory() else {
-        return Ok(false);
-    };
-    let endpoint = directory.join(format!("{profile}.sock"));
-    if !endpoint.exists() {
-        return Ok(false);
-    }
-    let mut stream = match ipc::connect(&endpoint).await {
-        Ok(stream) => stream,
-        Err(Error(Code::Disconnected)) => return Ok(false),
-        Err(error) => return Err(error),
-    };
-    let claim = uuid::Uuid::new_v4().to_string();
-    let message = serde_json::json!({"v":VERSION,"type":"profile-claim","sessionId":claim});
-    tokio::time::timeout(Duration::from_secs(1), ipc::write(&mut *stream, &message))
-        .await
-        .map_err(|_| Error(Code::Timeout))??;
-    let bytes = tokio::time::timeout(Duration::from_secs(1), ipc::read(&mut *stream, 1024))
-        .await
-        .map_err(|_| Error(Code::Timeout))??;
-    #[derive(Deserialize)]
-    #[serde(deny_unknown_fields)]
-    struct LegacyAck {
-        v: u32,
-        #[serde(rename = "type")]
-        kind: String,
-        #[serde(rename = "sessionId")]
-        session: String,
-    }
-    let ack: LegacyAck = serde_json::from_slice(&bytes)?;
-    if ack.v != VERSION || ack.kind != "profile-ack" || ack.session != claim {
-        return Err(Error(Code::ProfileConflict));
-    }
-    drop(stream);
-    let _ = tokio::time::timeout(Duration::from_secs(5), input.recv()).await;
-    if let Ok(mut stream) = ipc::connect(&endpoint).await {
-        let release = serde_json::json!({"v":VERSION,"type":"profile-release","sessionId":claim});
-        let _ = tokio::time::timeout(Duration::from_secs(1), async {
-            ipc::write(&mut *stream, &release).await?;
-            ipc::read(&mut *stream, 1024).await
-        })
-        .await;
-    }
-    Ok(true)
 }
 
 #[cfg(test)]

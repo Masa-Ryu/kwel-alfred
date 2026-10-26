@@ -14,7 +14,6 @@ pub const MAX_RESULTS: u32 = 100;
 pub const MAX_REQUEST_ID_UNITS: usize = 100;
 pub const MAX_PROFILE_LABEL_UNITS: usize = 64;
 pub const HOST_NAME: &str = "com.kwel.bridge";
-pub const LEGACY_HOST_NAME: &str = "com.kwel.alfred";
 pub const EXTENSION_ID: &str = env!("KWEL_EXTENSION_ID");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -137,7 +136,7 @@ pub struct Item {
     pub open_ref: String,
 }
 // Internal request representation. Only native::Wire owns Native JSON fields;
-// LocalRequest owns public IPC routing and migration uses its own control type.
+// LocalRequest owns public IPC routing; Host coordination uses private Control IPC.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Message {
     pub v: u32,
@@ -152,7 +151,6 @@ pub struct Message {
     pub has_more: Option<bool>,
     pub code: Option<Code>,
     pub text: String,
-    pub session_id: String,
     pub ok: bool,
 }
 mod native;

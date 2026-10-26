@@ -21,7 +21,7 @@ macOSの利用条件は[現行Chromeの対応OS](https://support.google.com/chro
 
 更新時は、使用中のChromeプロフィールでLocal ConnectionをOFFにしてからインストーラーを開き、更新後にONへ戻します。
 
-Kwel Settingsで **Local Connection** をONにします。以前のKwelでは **Alfred Integration** という名前です。Chromeの権限確認が表示された場合は内容を確認して承認してください。
+Kwel Settingsで **Local Connection** をONにします。Chromeの権限確認が表示された場合は内容を確認して承認してください。
 
 配布物は未署名・未公証です。GatekeeperやSmartScreenでブロックされる場合があります。OSの確認手順で配布元を確認してください。
 

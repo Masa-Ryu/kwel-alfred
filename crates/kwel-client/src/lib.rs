@@ -1,7 +1,3 @@
-#[cfg(any(target_os = "macos", test))]
-mod legacy;
-#[cfg(target_os = "macos")]
-use kwel_native_host::paths;
 use kwel_native_host::{ipc, paths::RuntimePaths};
 use kwel_protocol::{
     Code, Error, LocalRequest, LocalResponse, MAX_MESSAGE_BYTES, Message, Profile, Result, VERSION,
@@ -20,13 +16,7 @@ impl Client {
     pub async fn request(&self, request: LocalRequest) -> Result<LocalResponse> {
         request.validate()?;
         let message = request.message();
-        let result = self.exchange(&request).await;
-        #[cfg(target_os = "macos")]
-        let result = match result {
-            Err(Error(Code::Disconnected)) => self.legacy(&request).await,
-            other => other,
-        };
-        let response = result?;
+        let response = self.exchange(&request).await?;
         if response.version() != VERSION || response.request_id() != message.request_id {
             return Err(Error(Code::InvalidRequest));
         }
@@ -78,36 +68,11 @@ impl Client {
         .await
         .map_err(|_| Error(Code::Timeout))?
     }
-    // Read-only adapter for an already-running Go Host. New IPC never accepts
-    // its management operations; no legacy process is killed during migration.
-    #[cfg(target_os = "macos")]
-    async fn legacy(&self, request: &LocalRequest) -> Result<LocalResponse> {
-        let message = request.message();
-        let directory = paths::legacy_directory().ok_or(Error(Code::Disconnected))?;
-        let mut stream =
-            ipc::connect(&directory.join(format!("{}.sock", message.profile_id))).await?;
-        legacy::exchange(&mut *stream, request).await
-    }
     pub async fn profiles(&self) -> Result<Vec<Profile>> {
-        let mut ids = self.paths.profiles()?;
-        #[cfg(target_os = "macos")]
-        if let Some(directory) = paths::legacy_directory()
-            && let Ok(legacy) = std::fs::read_dir(directory)
-        {
-            for entry in legacy.flatten() {
-                if let Some(id) = entry.file_name().to_string_lossy().strip_suffix(".sock")
-                    && kwel_protocol::id(id)
-                {
-                    ids.push(id.into());
-                }
-            }
-        }
-        ids.sort();
-        ids.dedup();
-        ids.truncate(64);
+        let ids = self.paths.profiles()?;
         let mut jobs = tokio::task::JoinSet::new();
         let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(8));
-        for profile_id in ids {
+        for profile_id in ids.into_iter().take(64) {
             let client = self.clone();
             let semaphore = semaphore.clone();
             jobs.spawn(async move {

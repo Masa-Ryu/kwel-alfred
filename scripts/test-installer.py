@@ -17,7 +17,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"]
-HOSTS = ("com.kwel.bridge", "com.kwel.alfred")
+HOST_NAME = "com.kwel.bridge"
 ORIGIN = "chrome-extension://mhablbmgafbdofgaffhdnnknjhafmlin/"
 
 
@@ -26,10 +26,10 @@ def run(*arguments, **kwargs):
 
 
 def manifests(directory, binary):
-    for name in HOSTS:
-        value = json.loads((directory / f"{name}.json").read_text())
-        assert value["name"] == name and Path(value["path"]) == binary and value["type"] == "stdio"
-        assert value["allowed_origins"] == [ORIGIN]
+    name = HOST_NAME
+    value = json.loads((directory / f"{name}.json").read_text())
+    assert value["name"] == name and Path(value["path"]) == binary and value["type"] == "stdio"
+    assert value["allowed_origins"] == [ORIGIN]
 
 
 def installed_protocol(host_binary, client_binary, workflow_cli=None):
@@ -155,26 +155,26 @@ def main():
             installed_protocol(root / "bin/kwel-native-host", root / "bin/kwel-bridge", workflow / "kwel-alfred")
         run(root / "bin/kwel-native-host", "uninstall")
         assert not (root / "bin/kwel-native-host").exists()
-        for name in HOSTS:
-            assert not (chrome / f"{name}.json").exists()
+        name = HOST_NAME
+        assert not (chrome / f"{name}.json").exists()
     elif sys.platform == "win32":
         import winreg
         root = Path(os.environ["LOCALAPPDATA"]) / "Kwel/NativeBridge"
         for _ in range(2):
             run(artifacts / "KwelConnect-windows-x64-setup.exe", "/S")
         manifests(root / "manifests", root / "bin/kwel-native-host.exe")
-        for name in HOSTS:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, rf"Software\Google\Chrome\NativeMessagingHosts\{name}") as key:
-                assert Path(winreg.QueryValueEx(key, "")[0]) == root / "manifests" / f"{name}.json"
+        name = HOST_NAME
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, rf"Software\Google\Chrome\NativeMessagingHosts\{name}") as key:
+            assert Path(winreg.QueryValueEx(key, "")[0]) == root / "manifests" / f"{name}.json"
         installed_protocol(root / "bin/kwel-native-host.exe", root / "bin/kwel-bridge.exe")
         run(root / "Uninstall.exe", "/S", f"_?={root}")
         assert not (root / "bin/kwel-native-host.exe").exists()
-        for name in HOSTS:
-            try:
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, rf"Software\Google\Chrome\NativeMessagingHosts\{name}"):
-                    raise AssertionError("Native Host registry entry remains")
-            except FileNotFoundError:
-                pass
+        name = HOST_NAME
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, rf"Software\Google\Chrome\NativeMessagingHosts\{name}"):
+                raise AssertionError("Native Host registry entry remains")
+        except FileNotFoundError:
+            pass
     else:
         architecture = {"x86_64": "amd64", "aarch64": "arm64"}[platform.machine()]
         package = artifacts / f"KwelConnect-ubuntu-{architecture}.deb"
@@ -184,8 +184,8 @@ def main():
         installed_protocol(Path("/usr/lib/kwel-connect/kwel-native-host"), Path("/usr/bin/kwel-bridge"))
         run("sudo", "dpkg", "--remove", "kwel-connect")
         assert not Path("/usr/lib/kwel-connect/kwel-native-host").exists()
-        for name in HOSTS:
-            assert not Path(f"/etc/opt/chrome/native-messaging-hosts/{name}.json").exists()
+        name = HOST_NAME
+        assert not Path(f"/etc/opt/chrome/native-messaging-hosts/{name}.json").exists()
     print("Installer registration, idempotent upgrade and owned removal verified.")
 
 

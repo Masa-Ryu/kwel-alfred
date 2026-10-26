@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build/package the current OS. No Go, private preferences, or user IDs are read."""
+"""Build and verify current-platform packages without reading user data."""
 import argparse
 import hashlib
 import json
@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 VERSION = tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"]
 EXTENSION = json.loads((ROOT / "config/distribution.json").read_text())["chromeExtensionId"]
-HOSTS = ("com.kwel.bridge", "com.kwel.alfred")
+HOST_NAME = "com.kwel.bridge"
 BINS = ("kwel-native-host", "kwel-bridge", "kwel-alfred")
 
 
@@ -162,8 +162,8 @@ def linux():
         (host.parent / "release.json").write_text(json.dumps(release, indent=2) + "\n")
         manifests = stage / "etc/opt/chrome/native-messaging-hosts"
         manifests.mkdir(parents=True)
-        for name in HOSTS:
-            (manifests / f"{name}.json").write_text(json.dumps({"name": name, "description": "Kwel Local Connection", "path": "/usr/lib/kwel-connect/kwel-native-host", "type": "stdio", "allowed_origins": [f"chrome-extension://{EXTENSION}/"]}, indent=2) + "\n")
+        name = HOST_NAME
+        (manifests / f"{name}.json").write_text(json.dumps({"name": name, "description": "Kwel Local Connection", "path": "/usr/lib/kwel-connect/kwel-native-host", "type": "stdio", "allowed_origins": [f"chrome-extension://{EXTENSION}/"]}, indent=2) + "\n")
         for path in stage.rglob("*"):
             if path.is_file():
                 path.chmod(0o755 if path.name in (*BINS, "preinst", "prerm") else 0o644)
@@ -253,10 +253,11 @@ def verify_linux_package(package):
         stage = Path(temporary)
         run("dpkg-deb", "--extract", package, stage)
         run("dpkg-deb", "--control", package, stage / "DEBIAN")
-        for name in HOSTS:
-            manifest = json.loads((stage / f"etc/opt/chrome/native-messaging-hosts/{name}.json").read_text())
-            assert manifest["name"] == name and manifest["path"] == "/usr/lib/kwel-connect/kwel-native-host"
-            assert manifest["allowed_origins"] == [f"chrome-extension://{EXTENSION}/"]
+        name = HOST_NAME
+        assert {path.name for path in (stage / "etc/opt/chrome/native-messaging-hosts").iterdir()} == {f"{name}.json"}
+        manifest = json.loads((stage / f"etc/opt/chrome/native-messaging-hosts/{name}.json").read_text())
+        assert manifest["name"] == name and manifest["path"] == "/usr/lib/kwel-connect/kwel-native-host"
+        assert manifest["allowed_origins"] == [f"chrome-extension://{EXTENSION}/"]
         binaries = ("usr/lib/kwel-connect/kwel-native-host", "usr/bin/kwel-bridge", "DEBIAN/preinst", "DEBIAN/prerm")
         for name in binaries:
             binary = stage / name

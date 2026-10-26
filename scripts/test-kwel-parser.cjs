@@ -18,11 +18,19 @@ assert.equal(hash(fixtureBytes), provenance.fixtureSha256);
   // public Rust source pin. This changes the provenance direction, not checks.
   const pin = JSON.parse(readFileSync(path.join(source, 'tests/fixtures/local-connection/native-messaging-v1.source.json')));
   assert.equal(pin.repository, 'Masa-Ryu/kwel-connect');
-  assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), pin.commit);
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  const review = process.argv.includes('--review-current');
+  assert.match(pin.commit, /^[a-f0-9]{40}$/);
+  if (review) {
+    assert.notEqual(process.env.GITHUB_ACTIONS, 'true', 'CI must test its exact immutable pair pin.');
+    execFileSync('git', ['merge-base', '--is-ancestor', pin.commit, head], { cwd: root });
+    console.log(`Local review: current Rust ${head}; Kwel canonical pin ${pin.commit}. This does not update the Kwel CI pin.`);
+  } else assert.equal(head, pin.commit);
   assert.equal(pin.fixtureSha256, hash(fixtureBytes));
   for (const file of pin.sources) {
     assert.ok(['crates/kwel-protocol/tests/fixtures/native-messaging-v1.json', 'docs/native-messaging-v1.md', 'docs/schemas/native-messaging-v1.schema.json'].includes(file.path));
-    assert.equal(hash(readFileSync(path.join(root, file.path))), file.sha256);
+    const bytes = review ? execFileSync('git', ['show', `${pin.commit}:${file.path}`], { cwd: root }) : readFileSync(path.join(root, file.path));
+    assert.equal(hash(bytes), file.sha256);
   }
 }
 assert.equal(hash(readFileSync(path.join(source, 'tests/fixtures/local-connection/native-messaging-v1.json'))), provenance.fixtureSha256);
