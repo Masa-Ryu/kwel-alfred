@@ -118,10 +118,17 @@ jobs:
           done
           echo 'Node.js 24 is missing from the hosted runner tool cache.' >&2
           exit 1
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - name: Rust Native conformance and all 81 historical Go regressions
+        run: cargo test -p kwel-protocol --locked
       - name: Chrome verifier guard tests (not real E2E)
         run: |
+          node --check scripts/test-native-chrome.mjs
           node --check scripts/test-chrome-e2e.mjs
           node --test scripts/tests/chrome-e2e.test.mjs
+      - name: Record the private counterpart verification location
+        run: |
+          printf '%s\n' '## Native v1 pair' 'The matching TypeScript / real Chrome + Rust Host checks run in the private Kwel repository, without exporting its source or adding cross-repository PR secrets.' >> "$GITHUB_STEP_SUMMARY"
   compatibility:
     name: Released package compatibility (${{ matrix.name }})
     needs: rust

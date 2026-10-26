@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Execute the pinned, unmodified Kwel TypeScript parser, not a port of it.
+// Execute current Kwel's actual parser against its immutable public Rust pin.
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { execFileSync, spawnSync } = require('node:child_process');
@@ -11,11 +11,20 @@ const source = path.resolve(process.argv[2] || 'counterpart');
 const fixtureBytes = readFileSync(path.join(root, 'crates/kwel-protocol/tests/fixtures/native-messaging-v1.json'));
 const fixture = JSON.parse(fixtureBytes);
 const provenance = JSON.parse(readFileSync(path.join(root, 'crates/kwel-protocol/tests/fixtures/native-messaging-v1.source.json')));
-const counterpart = JSON.parse(readFileSync(path.join(root, 'config/kwel-counterpart.json')));
 const hash = value => createHash('sha256').update(value).digest('hex');
 assert.equal(hash(fixtureBytes), provenance.fixtureSha256);
-assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: source, encoding: 'utf8' }).trim(), counterpart.commit);
-for (const file of counterpart.sources) assert.equal(hash(readFileSync(path.join(source, file.path))), file.sha256);
+{
+  // In the private Kwel CI, the current PR is tested against its immutable
+  // public Rust source pin. This changes the provenance direction, not checks.
+  const pin = JSON.parse(readFileSync(path.join(source, 'tests/fixtures/local-connection/native-messaging-v1.source.json')));
+  assert.equal(pin.repository, 'Masa-Ryu/kwel-connect');
+  assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), pin.commit);
+  assert.equal(pin.fixtureSha256, hash(fixtureBytes));
+  for (const file of pin.sources) {
+    assert.ok(['crates/kwel-protocol/tests/fixtures/native-messaging-v1.json', 'docs/native-messaging-v1.md', 'docs/schemas/native-messaging-v1.schema.json'].includes(file.path));
+    assert.equal(hash(readFileSync(path.join(root, file.path))), file.sha256);
+  }
+}
 assert.equal(hash(readFileSync(path.join(source, 'tests/fixtures/local-connection/native-messaging-v1.json'))), provenance.fixtureSha256);
 const requireKwel = createRequire(path.join(source, 'package.json'));
 const ts = requireKwel('typescript');
@@ -58,6 +67,7 @@ for (const [query, valid] of [
   ['😀'.repeat(100), true], ['😀'.repeat(101), false],
   ['あ'.repeat(198) + '😀', true], ['あ'.repeat(199) + '😀', false],
   ['\u{10000}'.repeat(100), true], ['\u{10ffff}'.repeat(101), false],
+  ['\ud800', false], ['\udfff', false], ['a\ud800b', false],
 ]) {
   const message = { v: 1, type: 'search', requestId: 'boundary', query, limit: 20 };
   assert.equal(kwel.parseNativeLocalHostMessage(message).ok, valid);
@@ -78,5 +88,5 @@ cases.forEach((input, index) => {
     if (input.message.type === 'search') assert.equal(results[index].message.query, input.message.query);
   }
 });
-console.log(`Pinned Kwel parser / Rust Native v1: ${cases.length} cases passed (65 shared + 9 Unicode boundaries).`);
+console.log(`Kwel parser / Rust Native v1: ${cases.length} cases passed (65 shared + 12 Unicode boundaries).`);
 console.log('This is a real parser conformance test, not Chrome/installer/Alfred E2E.');

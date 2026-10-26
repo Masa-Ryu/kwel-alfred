@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the adopted corpus and the exact pinned TypeScript reference checkout."""
+"""Check the canonical corpus and its immutable Kwel adoption provenance."""
 import argparse
 import hashlib
 import json
@@ -9,7 +9,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / 'crates/kwel-protocol/tests/fixtures/native-messaging-v1.json'
-SOURCE = ROOT / 'config/kwel-counterpart.json'
+SOURCE = FIXTURE.with_suffix('.source.json')
 
 
 def verify(kwel_root=None):

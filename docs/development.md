@@ -19,14 +19,14 @@ cargo audit --deny warnings
 python3 scripts/build.py package
 python3 scripts/build.py verify
 python3 -m unittest discover -s scripts/tests -v
+cargo build -p kwel-protocol --example native-conformance --locked
+node scripts/test-kwel-parser.cjs /path/to/current/kwel-checkout --current-kwel
 node --test scripts/tests/chrome-e2e.test.mjs
 ```
 
 Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` additionally exercises actual package install/upgrade/removal only on disposable GitHub-hosted runners; it refuses ordinary local environments. Do not run installer tests against a real user home.
 
-The 81 Go-derived cases retain their exact original verdicts/normalizations through a test-only historical codec snapshot; production Native wire rules are tested separately against the shared 65-case corpus. Native string rules, including lone-surrogate rejection, are documented in `native-messaging-v1.md`.
-
-An optional local Kwel parser comparison is available when a reviewer already has the exact checkout pinned in `config/kwel-counterpart.json` and its locked TypeScript/Zod dependencies: build `cargo build -p kwel-protocol --example native-conformance --locked`, then run `node scripts/test-kwel-parser.cjs /path/to/pinned/kwel-checkout`. It checks the real parser/builders and Rust frames. This comparison is not required by CI or Release; CI does not clone Kwel or publish its TypeScript source.
+The current Kwel parser comparison runs in Kwel's private CI against the public Connect commit pinned in Kwel's `tests/fixtures/local-connection/native-messaging-v1.source.json`. Both checkouts are immutable for the run; fixture, specification and schema hashes are checked before executing the real TypeScript/Zod parser/builders and actual Rust frames. This avoids giving public PRs credentials to private source. The adapter checks all 65 shared cases plus 12 Unicode boundaries, including lone-surrogate rejection. No test changes the search engine or fixture expectations. The 81 Go-derived cases retain their original verdicts and normalized JSON through a test-only historical codec, separate from production Native rules.
 
 For real Chrome-launched Host, two-profile history/ranking/openRef and OS approval checks, use [the E2E verifier and manual sign-off procedure](chrome-e2e.md). Node/CDP guard tests, parser tests and the installed synthetic-peer test are not real Chrome/Alfred E2E and must never be reported as such.
 
@@ -58,8 +58,12 @@ Issue #2 originally requested a research-only RFC. The implementation request su
 
 ## Shared Native v1 release gate
 
-`cargo test --workspace --locked` includes the 65-case Native-only corpus and all 81 archived Go-reference cases with unchanged verdicts/normalizations through a test-only historical codec. The corpus CI job runs `scripts/check-native-fixture.py` to verify its exact hash and recorded provenance. The immutable adoption origin is recorded alongside the canonical fixture. The optional `--kwel-root <checkout>` mode additionally checks the runtime counterpart commit, protocol source and identical JSON bytes locally. The corpus job uses the hosted Node.js 24 tool cache only for Chrome verifier guard tests. The existing three checkout/upload/download Action SHAs and repository allowlist remain unchanged.
+`cargo test --workspace --locked` includes the canonical Native65 and unchanged historical Go81 cases. `python3 scripts/check-native-fixture.py` checks the canonical hash and immutable adoption metadata. Its optional `--kwel-root` verifies the original adoption checkout, not the latest parser. Kwel's `scripts/sync-native-fixture.mjs --check --upstream` checks its copy and source pin without modifying expectations; `--write --ref <full-public-Connect-SHA>` intentionally synchronizes all three canonical files and records hashes.
 
-The reusable Test workflow is required by Release's `validate` job. Rust conformance or corpus-provenance failure therefore blocks `publish`; there is no allow-failure path. Actual Chrome/Alfred interaction remains a separate manual validation step.
+The public Connect Test workflow's canonical-corpus job and all OS Rust tests are required by Release's reusable `validate`. Kwel's required hosted **Native v1 pair** job tests its current PR parser against its pinned Connect source, builds the real Host/CLI and production extension, then runs Google Chrome search/open in two disposable profiles. Failed, cancelled, skipped or missing pair results block Kwel's `Verify` and automatic Release. The original application suites on N100 and full local pre-push gate are unchanged. Actions remain SHA-pinned, with read-only PR permissions and no pair-test secrets or artifact uploads.
+
+Before a formal Connect release, also review the matching successful private pair run and perform the OS/GUI checks in [the E2E procedure](chrome-e2e.md). Connect cannot query a private Kwel run using its public PR token; its green CI alone does not attest that private run or approve a release. No release is created by these protocol changes.
+
+Unix installer security tests execute each fixture in a dedicated subprocess so another test's fork cannot briefly inherit its live file lock. Every original assertion still runs. Production locking and concurrent IPC tests remain unchanged; no retry, sleep or skip hides a lock failure.
 
 The shared corpus is checked out with LF on every OS via `.gitattributes`; Windows `core.autocrlf` must not change the bytes whose SHA-256 is recorded. Reference paths reject both POSIX and Windows roots, drive-relative paths and parent traversal on every platform.

@@ -13,7 +13,7 @@
     }
   ],
   "canonicalRepository": "Masa-Ryu/kwel-connect",
-  "canonicalPath": "docs/fixtures/native-messaging-v1.json",
+  "canonicalPath": "crates/kwel-protocol/tests/fixtures/native-messaging-v1.json",
   "adoption": "Reviewed unchanged from Kwel PR #211; this repository now owns the shared Native v1 corpus.",
   "canonicalSource": "crates/kwel-protocol/tests/fixtures/native-messaging-v1.json"
 }

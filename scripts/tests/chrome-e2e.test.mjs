@@ -6,7 +6,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 const script = fileURLToPath(new URL('../test-chrome-e2e.mjs', import.meta.url));
+
+test('the public unpacked test key preserves only the published Host identity', () => {
+  const value=JSON.parse(readFileSync(new URL('../../config/chrome-e2e-extension.json', import.meta.url),'utf8'));
+  const digest=createHash('sha256').update(Buffer.from(value.publicKey,'base64')).digest().subarray(0,16);
+  const id=[...digest].flatMap(byte=>[byte>>4,byte&15]).map(value=>String.fromCharCode(97+value)).join('');
+  assert.equal(id,value.extensionId);
+  assert.equal(id,JSON.parse(readFileSync(new URL('../../config/distribution.json',import.meta.url),'utf8')).chromeExtensionId);
+});
 
 test('Chrome plans allocate fresh, marked temporary profiles and reject unsafe endpoints', () => {
   const prepared = JSON.parse(execFileSync(process.execPath, [script, 'prepare'], { encoding: 'utf8', timeout: 5000 }));
