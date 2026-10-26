@@ -19,14 +19,14 @@ cargo audit --deny warnings
 python3 scripts/build.py package
 python3 scripts/build.py verify
 python3 -m unittest discover -s scripts/tests -v
-cargo build -p kwel-protocol --example native-conformance --locked
-node scripts/test-kwel-parser.cjs /path/to/pinned/kwel-checkout
 node --test scripts/tests/chrome-e2e.test.mjs
 ```
 
 Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` additionally exercises actual package install/upgrade/removal only on disposable GitHub-hosted runners; it refuses ordinary local environments. Do not run installer tests against a real user home.
 
-The current Kwel parser comparison uses the exact counterpart commit/hashes in `crates/kwel-protocol/tests/fixtures/native-messaging-v1.source.json` and its locked TypeScript/Zod dependencies. CI checks out that commit read-only and installs with pnpm 10.17.1 / `--frozen-lockfile --ignore-scripts`; it executes the real parser/builders plus Rust frames, without building or changing the Kwel search engine. The 81 Go-derived cases retain their exact original verdicts/normalizations through a test-only historical codec snapshot; production Native wire rules are tested separately. Shared 65-case Native conformance and nine well-formed Unicode boundaries are the current parser evidence. Native string rules, including lone-surrogate rejection, are documented in `native-messaging-v1.md`.
+The 81 Go-derived cases retain their exact original verdicts/normalizations through a test-only historical codec snapshot; production Native wire rules are tested separately against the shared 65-case corpus. Native string rules, including lone-surrogate rejection, are documented in `native-messaging-v1.md`.
+
+An optional local Kwel parser comparison is available when a reviewer already has the exact checkout pinned in `config/kwel-counterpart.json` and its locked TypeScript/Zod dependencies: build `cargo build -p kwel-protocol --example native-conformance --locked`, then run `node scripts/test-kwel-parser.cjs /path/to/pinned/kwel-checkout`. It checks the real parser/builders and Rust frames. This comparison is not required by CI or Release; CI does not clone Kwel or publish its TypeScript source.
 
 For real Chrome-launched Host, two-profile history/ranking/openRef and OS approval checks, use [the E2E verifier and manual sign-off procedure](chrome-e2e.md). Node/CDP guard tests, parser tests and the installed synthetic-peer test are not real Chrome/Alfred E2E and must never be reported as such.
 
@@ -58,8 +58,8 @@ Issue #2 originally requested a research-only RFC. The implementation request su
 
 ## Shared Native v1 release gate
 
-`cargo test --workspace --locked` includes the 65-case Native-only corpus and all 81 archived Go-reference cases with unchanged verdicts/normalizations through a test-only historical codec. `scripts/check-native-fixture.py --kwel-root <checkout>` verifies the canonical corpus hash, the runtime counterpart pin in `config/kwel-counterpart.json`, its protocol source and identical JSON bytes. The immutable adoption origin is recorded alongside the canonical fixture. The separate TypeScript CI job selects Node.js 24 from the hosted runner tool cache, requires that major version, and uses pnpm 10.17.1. It runs the reference suite without building Chrome or reading any personal profile. The existing three checkout/upload/download Action SHAs and repository allowlist remain unchanged; a missing Node.js 24 installation fails the check.
+`cargo test --workspace --locked` includes the 65-case Native-only corpus and all 81 archived Go-reference cases with unchanged verdicts/normalizations through a test-only historical codec. The corpus CI job runs `scripts/check-native-fixture.py` to verify its exact hash and recorded provenance. The immutable adoption origin is recorded alongside the canonical fixture. The optional `--kwel-root <checkout>` mode additionally checks the runtime counterpart commit, protocol source and identical JSON bytes locally. The corpus job uses the hosted Node.js 24 tool cache only for Chrome verifier guard tests. The existing three checkout/upload/download Action SHAs and repository allowlist remain unchanged.
 
-The reusable Test workflow is required by Release's `validate` job. Rust or TypeScript conformance failure therefore blocks `publish`; there is no allow-failure or skipped conformance path. Actual Chrome/Alfred interaction remains a separate manual validation step.
+The reusable Test workflow is required by Release's `validate` job. Rust conformance or corpus-provenance failure therefore blocks `publish`; there is no allow-failure path. Actual Chrome/Alfred interaction remains a separate manual validation step.
 
 The shared corpus is checked out with LF on every OS via `.gitattributes`; Windows `core.autocrlf` must not change the bytes whose SHA-256 is recorded. Reference paths reject both POSIX and Windows roots, drive-relative paths and parent traversal on every platform.
