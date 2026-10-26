@@ -47,6 +47,25 @@ fn installation_is_idempotent_exact_origin_and_removes_only_owned_files() {
 }
 #[test]
 fn session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse() {
+    #[cfg(unix)]
+    if std::env::var_os("KWEL_SESSION_LOCK_FIXTURE").is_none() {
+        // A concurrent test's fork can briefly inherit our flock until exec,
+        // even with CLOEXEC. Exercise this lifecycle in a child that runs only
+        // this test, so closing a guard synchronizes with the last lock owner.
+        // Keep every in-use/reuse/removal assertion, without retrying a lock.
+        assert!(
+            std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse"
+                ])
+                .env("KWEL_SESSION_LOCK_FIXTURE", "1")
+                .status()
+                .unwrap()
+                .success()
+        );
+        return;
+    }
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
     let guard = install::session_guard(&layout, &layout.binary())
