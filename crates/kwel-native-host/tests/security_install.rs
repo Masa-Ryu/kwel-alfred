@@ -10,6 +10,29 @@ use kwel_protocol::{Code, EXTENSION_ID, Error, HOST_NAME, LEGACY_HOST_NAME};
 use std::fs;
 #[cfg(unix)]
 use std::path::Path;
+
+#[cfg(unix)]
+fn isolated(name: &str) -> bool {
+    if std::env::args().skip(1).eq(["--exact", name]) {
+        return false;
+    }
+    // A fork in any parallel fixture can inherit another fixture's flock until
+    // exec, even with CLOEXEC. The parent holds no fixture resources; each
+    // child runs one complete lifecycle, including its refusal assertions.
+    assert!(
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", name])
+            .status()
+            .unwrap()
+            .success()
+    );
+    true
+}
+#[cfg(not(unix))]
+fn isolated(_: &str) -> bool {
+    false
+}
+
 fn fixture() -> (tempfile::TempDir, Layout, RuntimePaths, std::path::PathBuf) {
     let temporary = support::directory();
     let base = temporary.path().canonicalize().unwrap();
@@ -26,6 +49,9 @@ fn fixture() -> (tempfile::TempDir, Layout, RuntimePaths, std::path::PathBuf) {
 }
 #[test]
 fn installation_is_idempotent_exact_origin_and_removes_only_owned_files() {
+    if isolated("installation_is_idempotent_exact_origin_and_removes_only_owned_files") {
+        return;
+    }
     let (_temp, layout, runtime, source) = fixture();
     assert!(install::install(&source, &layout, &runtime, false).unwrap());
     assert!(!install::install(&source, &layout, &runtime, false).unwrap());
@@ -49,6 +75,9 @@ fn installation_is_idempotent_exact_origin_and_removes_only_owned_files() {
 
 #[test]
 fn previous_local_integration_description_is_safely_updated() {
+    if isolated("previous_local_integration_description_is_safely_updated") {
+        return;
+    }
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
     for name in [HOST_NAME, LEGACY_HOST_NAME] {
@@ -66,23 +95,7 @@ fn previous_local_integration_description_is_safely_updated() {
 }
 #[test]
 fn session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse() {
-    #[cfg(unix)]
-    if std::env::var_os("KWEL_SESSION_LOCK_FIXTURE").is_none() {
-        // A concurrent test's fork can briefly inherit our flock until exec,
-        // even with CLOEXEC. Exercise this lifecycle in a child that runs only
-        // this test, so closing a guard synchronizes with the last lock owner.
-        // Keep every in-use/reuse/removal assertion, without retrying a lock.
-        assert!(
-            std::process::Command::new(std::env::current_exe().unwrap())
-                .args([
-                    "--exact",
-                    "session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse"
-                ])
-                .env("KWEL_SESSION_LOCK_FIXTURE", "1")
-                .status()
-                .unwrap()
-                .success()
-        );
+    if isolated("session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse") {
         return;
     }
     let (_temp, layout, runtime, source) = fixture();
@@ -104,6 +117,9 @@ fn session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse() 
 }
 #[test]
 fn newer_host_is_reused_and_partial_newer_update_cannot_be_downgraded() {
+    if isolated("newer_host_is_reused_and_partial_newer_update_cannot_be_downgraded") {
+        return;
+    }
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
     let path = layout.root.join("install.json");
@@ -129,6 +145,9 @@ fn newer_host_is_reused_and_partial_newer_update_cannot_be_downgraded() {
 }
 #[test]
 fn updated_workflow_and_interrupted_install_finish_only_journalled_binaries() {
+    if isolated("updated_workflow_and_interrupted_install_finish_only_journalled_binaries") {
+        return;
+    }
     use sha2::{Digest, Sha256};
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
@@ -161,6 +180,9 @@ fn updated_workflow_and_interrupted_install_finish_only_journalled_binaries() {
 }
 #[test]
 fn unrecognized_manifests_and_modified_binaries_are_never_overwritten_or_removed() {
+    if isolated("unrecognized_manifests_and_modified_binaries_are_never_overwritten_or_removed") {
+        return;
+    }
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
     let path = layout.manifest(HOST_NAME);
@@ -178,6 +200,9 @@ fn unrecognized_manifests_and_modified_binaries_are_never_overwritten_or_removed
 }
 #[test]
 fn local_connection_description_preserves_recognized_previous_registrations() {
+    if isolated("local_connection_description_preserves_recognized_previous_registrations") {
+        return;
+    }
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
     for name in [HOST_NAME, LEGACY_HOST_NAME] {
@@ -198,6 +223,9 @@ fn local_connection_description_preserves_recognized_previous_registrations() {
 
 #[test]
 fn legacy_registration_migrates_without_deleting_legacy_binary() {
+    if isolated("legacy_registration_migrates_without_deleting_legacy_binary") {
+        return;
+    }
     let (_temp, layout, runtime, source) = fixture();
     secure::atomic_write(&layout.legacy_binary, b"legacy bridge fixture", true).unwrap();
     let old = Manifest {
@@ -224,6 +252,9 @@ fn legacy_registration_migrates_without_deleting_legacy_binary() {
 }
 #[tokio::test]
 async fn in_use_host_is_never_deleted() {
+    if isolated("in_use_host_is_never_deleted") {
+        return;
+    }
     let (_temp, layout, runtime, source) = fixture();
     install::install(&source, &layout, &runtime, false).unwrap();
     let profile = "00000000-0000-4000-8000-00000000000a";
@@ -242,6 +273,9 @@ async fn in_use_host_is_never_deleted() {
 #[cfg(unix)]
 #[tokio::test]
 async fn socket_permissions_stale_recovery_and_replacement_ownership() {
+    if isolated("socket_permissions_stale_recovery_and_replacement_ownership") {
+        return;
+    }
     use std::os::unix::fs::PermissionsExt;
     if let Some(path) = std::env::var_os("KWEL_SOCKET_EXIT_FIXTURE") {
         let _socket = std::os::unix::net::UnixListener::bind(path).unwrap();
@@ -293,6 +327,9 @@ async fn socket_permissions_stale_recovery_and_replacement_ownership() {
 #[cfg(unix)]
 #[test]
 fn symlink_and_foreign_owner_checks_fail_closed() {
+    if isolated("symlink_and_foreign_owner_checks_fail_closed") {
+        return;
+    }
     use std::os::unix::{fs::PermissionsExt, fs::symlink};
     let (_temp, layout, runtime, source) = fixture();
     secure::ensure_dir(&layout.manifests).unwrap();
@@ -317,6 +354,9 @@ fn symlink_and_foreign_owner_checks_fail_closed() {
 #[cfg(unix)]
 #[tokio::test]
 async fn atomic_file_operations_reject_symlinks_unsafe_parents_and_socket_type_confusion() {
+    if isolated("atomic_file_operations_reject_symlinks_unsafe_parents_and_socket_type_confusion") {
+        return;
+    }
     use std::os::unix::{fs::PermissionsExt, fs::symlink};
     let temp = support::directory();
     let root = temp.path().canonicalize().unwrap();
@@ -359,6 +399,9 @@ async fn atomic_file_operations_reject_symlinks_unsafe_parents_and_socket_type_c
 #[cfg(target_os = "macos")]
 #[test]
 fn macos_copy_preserves_quarantine_extended_attributes_and_resource_forks() {
+    if isolated("macos_copy_preserves_quarantine_extended_attributes_and_resource_forks") {
+        return;
+    }
     use std::process::Command;
     let (_temp, layout, _runtime, source) = fixture();
     let original = source.join(paths::native_binary_name());
