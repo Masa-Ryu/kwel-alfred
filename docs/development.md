@@ -43,6 +43,8 @@ Ubuntu 26.04 amd64/arm64 jobs run source tests/builds separately, then download 
 
 Release producer artifacts are always transferred within the run to support these consumer tests, with one-day retention by default or two days for release/review runs. Compatibility consumers never upload release artifacts. The release collector's own runner can be Ubuntu 26.04 because it copies validated files without rebuilding Linux binaries.
 
+Test concurrency includes the caller workflow, event, repository and branch. Push and PR runs both execute their full checks without cancelling one another; only an older run in the same stream is superseded. The caller workflow also separates manual Test execution from Release's reusable validation. GitHub documents these [concurrency groups](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
 actionlint 1.7.12's bundled runner catalog does not yet include the two [official Ubuntu 26.04 labels](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). For that version, validate syntax with `actionlint -ignore '^label "ubuntu-26\.04(-arm)?" is unknown\.' .github/workflows/test.yml .github/workflows/release.yml`. Only those catalog false positives are excluded; actual hosted execution and installer/security checks remain required. No self-hosted label aliases are added.
 
 ## First release and development installations
