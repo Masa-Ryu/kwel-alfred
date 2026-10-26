@@ -11,6 +11,18 @@
     }
   ],
   "$defs": {
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "x-utf16-maxLength": 100
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "minLength": 36,
+      "maxLength": 36
+    },
     "request": {
       "oneOf": [
         {
@@ -24,16 +36,10 @@
               "const": "profile-probe"
             },
             "requestId": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "x-utf16-maxLength": 100
+              "$ref": "#/$defs/requestId"
             },
             "profileId": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
-              "minLength": 36,
-              "maxLength": 36
+              "$ref": "#/$defs/uuid"
             }
           },
           "required": [
@@ -55,16 +61,10 @@
               "const": "search"
             },
             "requestId": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "x-utf16-maxLength": 100
+              "$ref": "#/$defs/requestId"
             },
             "profileId": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
-              "minLength": 36,
-              "maxLength": 36
+              "$ref": "#/$defs/uuid"
             },
             "query": {
               "type": "string",
@@ -98,22 +98,13 @@
               "const": "open-page"
             },
             "requestId": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "x-utf16-maxLength": 100
+              "$ref": "#/$defs/requestId"
             },
             "profileId": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
-              "minLength": 36,
-              "maxLength": 36
+              "$ref": "#/$defs/uuid"
             },
             "openRef": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
-              "minLength": 36,
-              "maxLength": 36
+              "$ref": "#/$defs/uuid"
             }
           },
           "required": [
@@ -140,16 +131,10 @@
               "const": "profile-info"
             },
             "requestId": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "x-utf16-maxLength": 100
+              "$ref": "#/$defs/requestId"
             },
             "profileId": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
-              "minLength": 36,
-              "maxLength": 36
+              "$ref": "#/$defs/uuid"
             },
             "profileLabel": {
               "type": "string",
@@ -187,10 +172,7 @@
               "const": "search-result"
             },
             "requestId": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "x-utf16-maxLength": 100
+              "$ref": "#/$defs/requestId"
             },
             "items": {
               "type": "array",
@@ -220,10 +202,7 @@
                     "type": "string"
                   },
                   "openRef": {
-                    "type": "string",
-                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
-                    "minLength": 36,
-                    "maxLength": 36
+                    "$ref": "#/$defs/uuid"
                   }
                 }
               }
@@ -252,10 +231,7 @@
               "const": "open-result"
             },
             "requestId": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100,
-              "x-utf16-maxLength": 100
+              "$ref": "#/$defs/requestId"
             },
             "ok": {
               "const": true

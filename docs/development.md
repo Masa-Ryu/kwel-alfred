@@ -43,7 +43,7 @@ Ubuntu 26.04 amd64/arm64 jobs run source tests/builds separately, then download 
 
 Release producer artifacts are always transferred within the run to support these consumer tests, with one-day retention by default or two days for release/review runs. Compatibility consumers never upload release artifacts. The release collector's own runner can be Ubuntu 26.04 because it copies validated files without rebuilding Linux binaries.
 
-Test concurrency includes the caller workflow, event, repository and branch. Push and PR runs both execute their full checks without cancelling one another; only an older run in the same stream is superseded. The caller workflow also separates manual Test execution from Release's reusable validation. GitHub documents these [concurrency groups](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+Automatic Test runs on pull requests and pushes to main; development-branch pushes do not start a second full run. Manual dispatch and reusable calls remain available. Concurrency includes the caller workflow, event, repository and PR number (or branch), so only older runs of the same PR are superseded and manual Release validation remains independent. GitHub documents these [concurrency groups](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
 
 actionlint 1.7.12's bundled runner catalog does not yet include the two [official Ubuntu 26.04 labels](https://docs.github.com/en/actions/reference/runners/github-hosted-runners). For that version, validate syntax with `actionlint -ignore '^label "ubuntu-26\.04(-arm)?" is unknown\.' .github/workflows/test.yml .github/workflows/release.yml`. Only those catalog false positives are excluded; actual hosted execution and installer/security checks remain required. No self-hosted label aliases are added.
 
@@ -109,7 +109,7 @@ isolated Git fixtures, mocked read-only GitHub responses and workflow policy che
 
 ## Shared Native v1 release gate
 
-`cargo test --workspace --locked` includes Native65, Schema and current validation boundaries, secure IPC/session and installation regressions. `python3 scripts/check-native-fixture.py` checks the corpus's own integrity and adoption history. Optional `--kwel-root` audits the original adoption snapshot only; it is not a compatibility test of current Kwel and is not required by paired CI.
+`cargo test --workspace --locked` includes Native65, Schema and current validation boundaries, secure IPC/session and installation regressions. `python3 scripts/check-native-fixture.py` verifies Connect's canonical owner/path and SHA-256 without another checkout. Adoption source fields are read-only history; no partner files, commits or document hashes are compared.
 
 Connect's canonical-corpus job and all OS Rust tests remain required by Release's reusable `validate`. Kwel's required **Native v1 pair** runs on n100, reads the selected checkout directly without a copied corpus or document hashes, tests both implementations, builds the real Host/CLI and production extension, and runs Google Chrome in two disposable profiles. Failed, cancelled, skipped or missing pair results block Kwel's `Verify` and automatic Release. Its ordinary application checks and full local pre-push gate remain required. PR permissions stay read-only; no pair secrets or artifact uploads are added.
 
@@ -117,7 +117,7 @@ Before a formal Connect release, also review the matching successful private pai
 
 Unix installer security tests execute each fixture in a dedicated subprocess so another test's fork cannot briefly inherit its live file lock. Every original assertion still runs. Production locking and concurrent IPC tests remain unchanged; no retry, sleep or skip hides a lock failure.
 
-The shared corpus is checked out with LF on every OS via `.gitattributes`; Windows `core.autocrlf` must not change the bytes whose SHA-256 is recorded. Reference paths reject both POSIX and Windows roots, drive-relative paths and parent traversal on every platform.
+The shared corpus is checked out with LF on every OS via `.gitattributes`; Windows `core.autocrlf` must not change the bytes whose SHA-256 is recorded. Markdown example checks accept LF/CRLF, validate every JSON block and require all v1 message types rather than a fixed example count.
 
 ## Source references and compatibility
 

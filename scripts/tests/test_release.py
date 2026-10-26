@@ -69,12 +69,12 @@ class ReleasePolicy(unittest.TestCase):
 
 
 class TestWorkflowPolicy(unittest.TestCase):
-    def test_automatic_and_reusable_triggers_are_preserved(self):
+    def test_pr_main_push_and_manual_or_reusable_triggers(self):
         source = (ROOT / '.github/workflows/test.yml').read_text()
         triggers = block(source, 'on')
         self.assertEqual(re.findall(r'^  ([\w-]+):', triggers, re.M),
                          ['pull_request', 'push', 'workflow_dispatch', 'workflow_call'])
-        self.assertIn("branches: ['**']", block(triggers, 'push', 2))
+        self.assertEqual(block(triggers, 'push', 2).strip(), "push:\n    branches: ['main']")
 
     def test_push_pr_and_release_validation_cannot_cancel_each_other(self):
         source = (ROOT / '.github/workflows/test.yml').read_text()
@@ -83,8 +83,8 @@ class TestWorkflowPolicy(unittest.TestCase):
         # A newer run within the same stream may still cancel an obsolete one.
         self.assertIn('${{ github.event_name }}', concurrency)
         self.assertIn('${{ github.workflow }}', concurrency)
-        self.assertIn('github.event.pull_request.head.repo.full_name || github.repository', concurrency)
-        self.assertIn('github.event.pull_request.head.ref || github.ref_name', concurrency)
+        self.assertIn('${{ github.repository }}', concurrency)
+        self.assertIn('github.event.pull_request.number || github.ref_name', concurrency)
         self.assertIn('cancel-in-progress: true', concurrency)
 
 

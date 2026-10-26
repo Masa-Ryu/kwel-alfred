@@ -14,45 +14,109 @@ fn schema(source: &str) -> jsonschema::Validator {
 const NATIVE_SCHEMA: &str = include_str!("../../../docs/schemas/native-messaging-v1.schema.json");
 const LOCAL_SCHEMA: &str = include_str!("../../../docs/schemas/local-client-v1.schema.json");
 
+fn check_examples(
+    document: &str,
+    validator: &jsonschema::Validator,
+    item: &jsonschema::Validator,
+    required: &[&str],
+) -> std::result::Result<(), String> {
+    let mut seen = std::collections::BTreeSet::new();
+    for example in document.split("```json").skip(1) {
+        let value: Value = serde_json::from_str(example.split("```").next().unwrap())
+            .map_err(|error| error.to_string())?;
+        let schema = if value.get("type").is_some() {
+            validator
+        } else {
+            item
+        };
+        if !schema.is_valid(&value) {
+            return Err(format!("Invalid documented example: {value}"));
+        }
+        if let Some(kind) = value["type"].as_str() {
+            seen.insert(kind.to_owned());
+        }
+    }
+    for kind in required {
+        if !seen.contains(*kind) {
+            return Err(format!("Missing documented message type: {kind}"));
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn specification_examples_validate_against_the_corresponding_schema() {
     let mut item_schema: Value = serde_json::from_str(NATIVE_SCHEMA).unwrap();
     item_schema.as_object_mut().unwrap().remove("oneOf");
     item_schema["$ref"] = json!("#/$defs/item");
     let item = jsonschema::draft202012::new(&item_schema).unwrap();
-    for (document, source, expected) in [
+    for (document, source, required) in [
         (
             include_str!("../../../docs/native-messaging-v1.md"),
             NATIVE_SCHEMA,
-            10,
+            [
+                "hello",
+                "hello-ack",
+                "ping",
+                "pong",
+                "search",
+                "search-result",
+                "open-page",
+                "open-result",
+                "error",
+            ]
+            .as_slice(),
         ),
         (
             include_str!("../../../docs/local-client-protocol-v1.md"),
             LOCAL_SCHEMA,
-            7,
+            [
+                "profile-probe",
+                "search",
+                "open-page",
+                "profile-info",
+                "search-result",
+                "open-result",
+                "error",
+            ]
+            .as_slice(),
         ),
     ] {
         let validator = schema(source);
-        // Exercise both checkout styles on every OS; fixture bytes are untouched.
         for newline in ["\n", "\r\n"] {
             let document = document.lines().collect::<Vec<_>>().join(newline);
-            let mut count = 0;
-            for example in document.split("```json").skip(1) {
-                let value: Value =
-                    serde_json::from_str(example.split("```").next().unwrap()).unwrap();
-                let validator = if value.get("type").is_some() {
-                    &validator
-                } else {
-                    &item
-                };
-                assert!(
-                    validator.is_valid(&value),
-                    "Invalid documented example: {value}"
-                );
-                count += 1;
-            }
-            assert_eq!(count, expected);
+            check_examples(&document, &validator, &item, required).unwrap();
         }
+    }
+}
+
+#[test]
+fn example_coverage_allows_additions_but_rejects_lost_types_or_invalid_json() {
+    let validator = schema(NATIVE_SCHEMA);
+    let ping = "```json\n{\"v\":1,\"type\":\"ping\"}\n```\n";
+    let pong = "```json\n{\"v\":1,\"type\":\"pong\"}\n```\n";
+    let required = ["ping", "pong"];
+    assert!(check_examples(&format!("{ping}{pong}"), &validator, &validator, &required).is_ok());
+    assert!(
+        check_examples(
+            &format!("{ping}{pong}{ping}"),
+            &validator,
+            &validator,
+            &required
+        )
+        .is_ok()
+    );
+    assert!(check_examples(ping, &validator, &validator, &required).is_err());
+    for invalid in ["not JSON", r#"{"v":2,"type":"pong"}"#] {
+        assert!(
+            check_examples(
+                &format!("{ping}{pong}```json\n{invalid}\n```"),
+                &validator,
+                &validator,
+                &required
+            )
+            .is_err()
+        );
     }
 }
 
