@@ -57,7 +57,7 @@ Automated package CI covers install/reinstall/removal with a synthetic Native pe
 
 ## Automated source-built pair check
 
-Kwel's required **Native v1 pair** job runs on hosted Ubuntu 24.04. It builds the pinned public Rust source and the current production extension, then invokes:
+Kwel's required **Native v1 pair** job runs on the Linux n100 runner. `KWEL_CONNECT_REF` selects a reviewed release tag or temporary pre-release SHA independently from Kwel's commit. The job records both actual source SHAs, builds that Rust version and the current production extension, then invokes:
 
 ```sh
 node /path/to/kwel-connect/scripts/test-native-chrome.mjs \

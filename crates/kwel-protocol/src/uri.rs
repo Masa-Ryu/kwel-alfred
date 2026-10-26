@@ -32,6 +32,11 @@ pub fn http(value: &str) -> bool {
     // Do not reinterpret an encoded hostname as a different authority.
     if host.is_empty()
         || host.contains('%')
+        || host.bytes().any(|byte| {
+            byte.is_ascii()
+                && !byte.is_ascii_alphanumeric()
+                && !b"-._~!$&'()*+,;=:[]".contains(&byte)
+        })
         || !valid_escapes(hierarchy)
         || !valid_escapes(fragment)
     {

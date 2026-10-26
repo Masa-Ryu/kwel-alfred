@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Execute current Kwel's actual parser against its immutable public Rust pin.
+// Compare actual implementations against Connect's Native v1 corpus, not Git equality.
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { execFileSync, spawnSync } = require('node:child_process');
@@ -13,27 +13,11 @@ const fixture = JSON.parse(fixtureBytes);
 const provenance = JSON.parse(readFileSync(path.join(root, 'crates/kwel-protocol/tests/fixtures/native-messaging-v1.source.json')));
 const hash = value => createHash('sha256').update(value).digest('hex');
 assert.equal(hash(fixtureBytes), provenance.fixtureSha256);
-{
-  // In the private Kwel CI, the current PR is tested against its immutable
-  // public Rust source pin. This changes the provenance direction, not checks.
-  const pin = JSON.parse(readFileSync(path.join(source, 'tests/fixtures/local-connection/native-messaging-v1.source.json')));
-  assert.equal(pin.repository, 'Masa-Ryu/kwel-connect');
-  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-  const review = process.argv.includes('--review-current');
-  assert.match(pin.commit, /^[a-f0-9]{40}$/);
-  if (review) {
-    assert.notEqual(process.env.GITHUB_ACTIONS, 'true', 'CI must test its exact immutable pair pin.');
-    execFileSync('git', ['merge-base', '--is-ancestor', pin.commit, head], { cwd: root });
-    console.log(`Local review: current Rust ${head}; Kwel canonical pin ${pin.commit}. This does not update the Kwel CI pin.`);
-  } else assert.equal(head, pin.commit);
-  assert.equal(pin.fixtureSha256, hash(fixtureBytes));
-  for (const file of pin.sources) {
-    assert.ok(['crates/kwel-protocol/tests/fixtures/native-messaging-v1.json', 'docs/native-messaging-v1.md', 'docs/schemas/native-messaging-v1.schema.json'].includes(file.path));
-    const bytes = review ? execFileSync('git', ['show', `${pin.commit}:${file.path}`], { cwd: root }) : readFileSync(path.join(root, file.path));
-    assert.equal(hash(bytes), file.sha256);
-  }
-}
-assert.equal(hash(readFileSync(path.join(source, 'tests/fixtures/local-connection/native-messaging-v1.json'))), provenance.fixtureSha256);
+// Source revisions are evidence for this run, never a compatibility predicate.
+const revision = cwd => execFileSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' }).trim();
+console.log(JSON.stringify({
+  test: 'Native v1 parser conformance', connectCommit: revision(root), kwelCommit: revision(source),
+}));
 const requireKwel = createRequire(path.join(source, 'package.json'));
 const ts = requireKwel('typescript');
 const previous = require.extensions['.ts'];

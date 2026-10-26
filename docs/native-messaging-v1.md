@@ -49,7 +49,7 @@ Only the listed fields are allowed, in addition to required `v` and `type`.
 | `domain` | String; may be empty |
 | `openRef` | Hyphenated RFC-variant UUID, version 1–8 |
 
-Result URLs use WHATWG URL parsing with an explicit HTTP(S) authority. Reject controls, backslash repair, encoded hostnames, non-ASCII userinfo, malformed path/fragment escapes and invalid ports. IPv6 literals are supported; scoped IPv6 zone identifiers are not. The HTTP prefix pattern in the Schema is only a structural check; use the implementation URL validator as well. Validation never rewrites the URL. The Native `open-page.openRef` is a lookup token, not a URL: Kwel issues UUIDs and independently verifies its reference table.
+Result URLs use WHATWG URL parsing with an explicit HTTP(S) authority. Reject controls, backslashes in any component, encoded hostnames, non-ASCII userinfo, malformed path/fragment escapes and invalid ports. ASCII host characters are limited to URI reg-name/IPv6 punctuation before URL parsing; braces, quotes and backticks are rejected. IPv6 literals are supported; scoped IPv6 zone identifiers are not. The HTTP prefix pattern in the Schema is only a structural check; use the implementation URL validator as well. Validation never rewrites the URL. The Native `open-page.openRef` is a lookup token, not a URL: Kwel issues UUIDs and independently verifies its reference table.
 
 ## Minimal examples
 

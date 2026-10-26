@@ -15,13 +15,15 @@ Use the Rust toolchain pinned by `rust-toolchain.toml`. Cargo.lock is committed.
 bash scripts/verify.sh
 python3 -m unittest discover -s scripts/tests -v
 cargo build -p kwel-protocol --example native-conformance --locked
-node scripts/test-kwel-parser.cjs /path/to/current/kwel-checkout --current-kwel
+node scripts/test-kwel-parser.cjs /path/to/current/kwel-checkout
 node --test scripts/tests/chrome-e2e.test.mjs
 ```
 
 Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` additionally exercises actual package install/upgrade/removal only on disposable GitHub-hosted runners; it refuses ordinary local environments. Do not run installer tests against a real user home.
 
-The current Kwel parser comparison runs in Kwel's private CI against the public Connect commit pinned in Kwel's `tests/fixtures/local-connection/native-messaging-v1.source.json`. Both checkouts are immutable for the run; fixture, specification and schema hashes are checked before executing the real TypeScript/Zod parser/builders and actual Rust frames. This avoids giving public PRs credentials to private source. The adapter checks all 65 shared cases plus 12 Unicode boundaries, including lone-surrogate rejection. No test changes the search engine or fixture expectations. For a local review of a newer Connect commit against the same corpus, add `--review-current`: it verifies Kwel's recorded source hashes from its immutable ancestor commit and runs the current Rust adapter. CI rejects this review mode and still requires its exact pair pin. Update the Kwel pin explicitly before coordinated release; editing only Connect does not update that private CI.
+Protocol compatibility is a behavioral result, not equality of repository commits or document hashes. `scripts/test-kwel-parser.cjs` reads Connect's canonical Native65 directly and runs the real TypeScript/Zod parser/builders plus actual Rust frames and 12 Unicode boundaries. It logs both checkout SHAs as evidence, without reading Kwel pin metadata, requiring latest HEADs, or comparing Markdown/Schema hashes. There is no separate local-review bypass mode.
+
+Kwel's ordinary protocol tests are offline and independent. Its dedicated pair suite uses `KWEL_CONNECT_ROOT` to read Connect's corpus and adapter directly; it also checks URL acceptance/projection, ranking, empty queries, Unicode and real Chrome search/open. The required n100 job selects a reproducible Connect version through `KWEL_CONNECT_REF`: prefer an immutable release tag once available; a reviewed full SHA is a temporary pre-release baseline. Updating that baseline is explicit and does not require either repository to chase the other's latest commit. Public Connect CI receives neither private source nor cross-repository credentials.
 
 For real Chrome-launched Host, two-profile history/ranking/openRef and OS approval checks, use [the E2E verifier and manual sign-off procedure](chrome-e2e.md). Node/CDP guard tests, parser tests and the installed synthetic-peer test are not real Chrome/Alfred E2E and must never be reported as such.
 
@@ -105,9 +107,9 @@ isolated Git fixtures, mocked read-only GitHub responses and workflow policy che
 
 ## Shared Native v1 release gate
 
-`cargo test --workspace --locked` includes the canonical Native65, current validation boundaries, secure IPC/session and installation regressions. `python3 scripts/check-native-fixture.py` checks the canonical hash and immutable adoption metadata. Its optional `--kwel-root` verifies the original adoption checkout, not the latest parser. Kwel's `scripts/sync-native-fixture.mjs --check --upstream` checks its copy and source pin without modifying expectations; `--write --ref <full-public-Connect-SHA>` intentionally synchronizes all three canonical files and records hashes.
+`cargo test --workspace --locked` includes Native65, Schema and current validation boundaries, secure IPC/session and installation regressions. `python3 scripts/check-native-fixture.py` checks the corpus's own integrity and adoption history. Optional `--kwel-root` audits the original adoption snapshot only; it is not a compatibility test of current Kwel and is not required by paired CI.
 
-The public Connect Test workflow's canonical-corpus job and all OS Rust tests are required by Release's reusable `validate`. Kwel's required hosted **Native v1 pair** job tests its current PR parser against its pinned Connect source, builds the real Host/CLI and production extension, then runs Google Chrome search/open in two disposable profiles. Failed, cancelled, skipped or missing pair results block Kwel's `Verify` and automatic Release. The original application suites on N100 and full local pre-push gate are unchanged. Actions remain SHA-pinned, with read-only PR permissions and no pair-test secrets or artifact uploads.
+Connect's canonical-corpus job and all OS Rust tests remain required by Release's reusable `validate`. Kwel's required **Native v1 pair** runs on n100, reads the selected checkout directly without a copied corpus or document hashes, tests both implementations, builds the real Host/CLI and production extension, and runs Google Chrome in two disposable profiles. Failed, cancelled, skipped or missing pair results block Kwel's `Verify` and automatic Release. Its ordinary application checks and full local pre-push gate remain required. PR permissions stay read-only; no pair secrets or artifact uploads are added.
 
 Before a formal Connect release, also review the matching successful private pair run and perform the OS/GUI checks in [the E2E procedure](chrome-e2e.md). Connect cannot query a private Kwel run using its public PR token; its green CI alone does not attest that private run or approve a release. No release is created by these protocol changes.
 
@@ -115,13 +117,12 @@ Unix installer security tests execute each fixture in a dedicated subprocess so 
 
 The shared corpus is checked out with LF on every OS via `.gitattributes`; Windows `core.autocrlf` must not change the bytes whose SHA-256 is recorded. Reference paths reject both POSIX and Windows roots, drive-relative paths and parent traversal on every platform.
 
-## Fixture commit references
+## Source references and compatibility
 
-| Metadata | Meaning |
+| Reference | Role |
 | --- | --- |
-| Kwel's `tests/fixtures/local-connection/native-messaging-v1.source.json` | Pins the Connect commit tested by Kwel CI. Adoption of another commit is explicit. |
-| Connect's `crates/kwel-protocol/tests/fixtures/native-messaging-v1.source.json` | Records the Kwel commit from which the shared fixture was first adopted. It is historical provenance, not a moving latest-HEAD pin. |
+| Kwel CI's `KWEL_CONNECT_REF` | Reproducible version selection: immutable release tag preferred, reviewed pre-release SHA allowed. Not a latest-HEAD equality rule. |
+| Connect's `crates/kwel-protocol/tests/fixtures/native-messaging-v1.source.json` | Historical Kwel adoption origin and corpus integrity. No current-Kwel tracking requirement. |
+| Pair logs' Connect/Kwel SHAs | Evidence of the actual two implementations tested; not compared to each other or to document hashes. |
 
-Changing the Release trigger updates neither Kwel's pin nor the adoption-origin
-SHA. The Release tag/dispatch SHA identifies a separate release snapshot. None of
-these Git references is a runtime Protocol field or a runtime dependency.
+The Release tag/dispatch SHA separately fixes Connect's publication snapshot. None of these references is a runtime Protocol field or dependency. Documentation-only edits do not change protocol compatibility.
