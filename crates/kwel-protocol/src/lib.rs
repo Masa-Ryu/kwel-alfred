@@ -53,15 +53,15 @@ impl Code {
                 "This Kwel profile is connected more than once. Search stopped to avoid mixing profiles."
             }
             Self::HostNotFound | Self::Disconnected => {
-                "The configured Kwel profile is not connected. Check Local Integration in that Chrome profile."
+                "The configured Kwel profile is not connected. Check Local Connection in that Chrome profile."
             }
             Self::Timeout => "Kwel took too long to respond. Try again.",
-            Self::PermissionRequired => "Enable Local Integration in Kwel Settings.",
+            Self::PermissionRequired => "Enable Local Connection in Kwel Settings.",
             Self::Busy => "Kwel is handling too many requests. Try again.",
             Self::UnsafePath => "Kwel refused an unsafe filesystem path or permission.",
             Self::InstallConflict => "An unrecognized Native Host registration already exists.",
             Self::DowngradeRefused => "A newer compatible Kwel Host is already installed.",
-            Self::HostInUse => "Kwel Host is in use. Disable Local Integration before removing it.",
+            Self::HostInUse => "Kwel Host is in use. Disable Local Connection before removing it.",
         }
     }
     pub fn native(self) -> bool {
@@ -115,6 +115,8 @@ pub fn id(value: &str) -> bool {
             b'8' | b'9' | b'a' | b'b' | b'A' | b'B'
         )
 }
+/// Normative v1 length: BMP scalars count once, supplementary scalars twice.
+/// Rust strings cannot contain the unpaired surrogates rejected by decode().
 pub fn units(value: &str) -> usize {
     value.encode_utf16().count()
 }
@@ -128,53 +130,38 @@ mod uri;
 pub fn http_url(value: &str) -> bool {
     uri::http(value)
 }
-fn zero(value: &u32) -> bool {
-    *value == 0
-}
-fn no(value: &bool) -> bool {
-    !value
-}
-
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields, rename_all = "camelCase")]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Item {
     pub title: String,
     pub url: String,
     pub domain: String,
     pub open_ref: String,
 }
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields, rename_all = "camelCase")]
+// Internal request representation. Only native::Wire owns Native JSON fields;
+// LocalRequest owns public IPC routing and migration uses its own control type.
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Message {
     pub v: u32,
-    #[serde(rename = "type")]
     pub kind: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub request_id: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub query: String,
-    #[serde(skip_serializing_if = "zero")]
     pub limit: u32,
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub profile_id: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub profile_label: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub open_ref: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<Item>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub has_more: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<Code>,
-    #[serde(rename = "message", skip_serializing_if = "String::is_empty")]
     pub text: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub session_id: String,
-    #[serde(skip_serializing_if = "no")]
     pub ok: bool,
 }
+mod native;
 impl Message {
+    pub fn native(&self) -> Result<()> {
+        native::validate(self)
+    }
     pub fn new(kind: &str) -> Self {
         Self {
             v: VERSION,
@@ -213,6 +200,7 @@ impl Message {
     pub fn search(&self) -> Result<()> {
         self.envelope()?;
         if self.kind != "search"
+            || !self.profile_id.is_empty()
             || self.request_id.is_empty()
             || units(&self.request_id) > MAX_REQUEST_ID_UNITS
             || units(&self.query) > MAX_QUERY_UNITS
@@ -227,8 +215,9 @@ impl Message {
         if self.kind != "open-page"
             || self.request_id.is_empty()
             || units(&self.request_id) > MAX_REQUEST_ID_UNITS
-            || !id(&self.profile_id)
-            || !id(&self.open_ref)
+            || !self.profile_id.is_empty()
+            || self.open_ref.is_empty()
+            || units(&self.open_ref) > MAX_REQUEST_ID_UNITS
         {
             return Err(Error(Code::InvalidRequest));
         }
@@ -236,7 +225,11 @@ impl Message {
     }
     pub fn response(&self, expected_id: &str, opening: bool, limit: u32) -> Result<()> {
         self.envelope()?;
-        if self.request_id != expected_id {
+        if self.request_id.is_empty()
+            || units(&self.request_id) > MAX_REQUEST_ID_UNITS
+            || expected_id.is_empty()
+            || self.request_id != expected_id
+        {
             return Err(Error(Code::InvalidRequest));
         }
         if self.kind == "error" {
@@ -266,7 +259,9 @@ pub fn decode(payload: &[u8]) -> Result<Message> {
     if payload.is_empty() || payload.len() > MAX_MESSAGE_BYTES {
         return Err(Error(Code::InvalidRequest));
     }
-    Ok(serde_json::from_slice(payload)?)
+    let message: Message = serde_json::from_slice(payload)?;
+    message.native()?;
+    Ok(message)
 }
 pub fn frame_length(header: [u8; 4], maximum: usize) -> Result<usize> {
     let length = u32::from_le_bytes(header) as usize;
@@ -331,7 +326,7 @@ pub enum LocalRequest {
 }
 impl LocalRequest {
     pub fn validate(&self) -> Result<()> {
-        let message = self.message();
+        let mut message = self.message();
         message.envelope()?;
         if !id(&message.profile_id)
             || message.request_id.is_empty()
@@ -339,9 +334,17 @@ impl LocalRequest {
         {
             return Err(Error(Code::InvalidRequest));
         }
+        // Routing belongs to the authenticated local IPC endpoint. Only the
+        // Native payload is validated below; it cannot carry profileId.
+        message.profile_id.clear();
         match self {
             Self::Search { .. } => message.search(),
-            Self::Open { .. } => message.open(),
+            Self::Open { .. } => {
+                if !id(&message.open_ref) {
+                    return Err(Error(Code::InvalidRequest));
+                }
+                message.open()
+            }
             Self::Probe { .. } => Ok(()),
         }
     }

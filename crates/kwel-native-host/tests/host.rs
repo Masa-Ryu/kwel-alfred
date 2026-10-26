@@ -173,6 +173,88 @@ async fn concurrent_clients_can_reuse_request_ids_without_mixing_responses() {
     }
     host.stop().await;
 }
+
+#[tokio::test]
+async fn uncorrelated_errors_never_complete_another_request_or_disconnect_the_session() {
+    let mut host = Host::start(A).await;
+    let one = tokio::spawn(exchange(host.paths.clone(), A, search(A, "one")));
+    let first = host.next().await;
+    let two = tokio::spawn(exchange(host.paths.clone(), A, search(A, "two")));
+    let second = host.next().await;
+    for code in [
+        "BAD_REQUEST",
+        "INCOMPATIBLE_VERSION",
+        "NOT_READY",
+        "SEARCH_FAILED",
+        "RESULT_EXPIRED",
+        "OPEN_FAILED",
+    ] {
+        let bytes = serde_json::to_vec(
+            &serde_json::json!({"v":1,"type":"error","requestId":null,"code":code}),
+        )
+        .unwrap();
+        host.input
+            .send(kwel_protocol::decode(&bytes))
+            .await
+            .unwrap();
+    }
+    host.input
+        .send(Ok(Message::error(&second.request_id, Code::BadRequest)))
+        .await
+        .unwrap();
+    host.input
+        .send(Ok(result(&first.request_id)))
+        .await
+        .unwrap();
+    assert!(
+        matches!(one.await.unwrap(),LocalResponse::Search {request_id,..} if request_id=="one")
+    );
+    assert!(
+        matches!(two.await.unwrap(),LocalResponse::Error {request_id,code:Code::BadRequest,..} if request_id=="two")
+    );
+    let next = tokio::spawn(exchange(host.paths.clone(), A, search(A, "after-error")));
+    let request = host.next().await;
+    host.input
+        .send(Ok(result(&request.request_id)))
+        .await
+        .unwrap();
+    assert!(
+        matches!(next.await.unwrap(),LocalResponse::Search {request_id,..} if request_id=="after-error")
+    );
+    host.stop().await;
+}
+
+#[tokio::test]
+async fn malformed_success_response_fails_closed_and_cancels_pending_requests() {
+    let mut host = Host::start(A).await;
+    let paths = host.paths.clone();
+    let request = tokio::spawn(exchange(paths.clone(), A, search(A, "pending")));
+    host.next().await;
+    host.input
+        .send(Ok(Message {
+            has_more: Some(false),
+            ..Message::new("search-result")
+        }))
+        .await
+        .unwrap();
+    assert!(matches!(
+        request.await.unwrap(),
+        LocalResponse::Error {
+            code: Code::Disconnected,
+            ..
+        }
+    ));
+    drop(host.input);
+    assert!(matches!(
+        host.task.await.unwrap(),
+        Err(Error(Code::InvalidRequest))
+    ));
+    assert!(
+        ipc::connect(&paths.endpoint(A, false).unwrap())
+            .await
+            .is_err()
+    );
+}
 #[tokio::test]
 async fn failed_native_writer_releases_both_endpoints_without_another_input() {
     let host = Host::start(A).await;

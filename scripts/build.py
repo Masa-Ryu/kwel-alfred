@@ -163,7 +163,7 @@ def linux():
         manifests = stage / "etc/opt/chrome/native-messaging-hosts"
         manifests.mkdir(parents=True)
         for name in HOSTS:
-            (manifests / f"{name}.json").write_text(json.dumps({"name": name, "description": "Kwel Local Integration", "path": "/usr/lib/kwel-connect/kwel-native-host", "type": "stdio", "allowed_origins": [f"chrome-extension://{EXTENSION}/"]}, indent=2) + "\n")
+            (manifests / f"{name}.json").write_text(json.dumps({"name": name, "description": "Kwel Local Connection", "path": "/usr/lib/kwel-connect/kwel-native-host", "type": "stdio", "allowed_origins": [f"chrome-extension://{EXTENSION}/"]}, indent=2) + "\n")
         for path in stage.rglob("*"):
             if path.is_file():
                 path.chmod(0o755 if path.name in (*BINS, "preinst", "prerm") else 0o644)

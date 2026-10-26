@@ -2,195 +2,289 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Masa-Ryu/kwel-connect/raw/main/docs/schemas/native-messaging-v1.schema.json",
   "title": "Kwel Native Messaging v1",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "v": {
-      "const": 1
-    },
-    "type": {
-      "type": "string"
-    },
-    "requestId": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 100,
-      "x-utf16-maxLength": 100
-    },
-    "query": {
-      "type": "string",
-      "maxLength": 200,
-      "x-utf16-maxLength": 200
-    },
-    "limit": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 100
-    },
-    "profileId": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-    },
-    "profileLabel": {
-      "type": "string",
-      "maxLength": 64,
-      "x-utf16-maxLength": 64,
-      "pattern": "^[^\\r\\n]*$"
-    },
-    "openRef": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-    },
-    "items": {
-      "type": "array",
-      "maxItems": 100,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "title",
-          "url",
-          "domain",
-          "openRef"
-        ],
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 1
-          },
-          "url": {
-            "type": "string",
-            "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
-            "description": "HTTP(S) result data. Host, escaping and control-character validation follow the normative Native v1 rules and Go reference fixtures."
-          },
-          "domain": {
-            "type": "string"
-          },
-          "openRef": {
-            "type": "string",
-            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
-          }
-        }
-      }
-    },
-    "hasMore": {
-      "type": "boolean"
-    },
-    "code": {
-      "enum": [
-        "BAD_REQUEST",
-        "INVALID_REQUEST",
-        "INCOMPATIBLE_VERSION",
-        "NOT_READY",
-        "RESULT_EXPIRED",
-        "OPEN_FAILED",
-        "SEARCH_FAILED",
-        "PROFILE_CONFLICT",
-        "HOST_NOT_FOUND",
-        "DISCONNECTED",
-        "TIMEOUT",
-        "PERMISSION_REQUIRED"
-      ]
-    },
-    "message": {
-      "type": "string"
-    },
-    "ok": {
-      "const": true
-    }
-  },
-  "required": [
-    "v",
-    "type"
-  ],
+  "$comment": "Native channel only. Local Client routing (profileId on search/open-page) and private management operations are forbidden. UTF-16 limits are normative, including astral characters counting as two units.",
   "oneOf": [
     {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "const": 1
+        },
         "type": {
           "const": "hello"
+        },
+        "profileId": {
+          "$ref": "#/$defs/uuid"
+        },
+        "profileLabel": {
+          "$ref": "#/$defs/profileLabel"
         }
       },
       "required": [
+        "v",
+        "type",
         "profileId"
       ]
     },
     {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "const": 1
+        },
         "type": {
           "const": "hello-ack"
         }
       },
-      "required": []
+      "required": [
+        "v",
+        "type"
+      ]
     },
     {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "const": 1
+        },
         "type": {
           "const": "ping"
         }
       },
-      "required": []
+      "required": [
+        "v",
+        "type"
+      ]
     },
     {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "const": 1
+        },
         "type": {
           "const": "pong"
         }
       },
-      "required": []
-    },
-    {
-      "properties": {
-        "type": {
-          "const": "search"
-        }
-      },
       "required": [
-        "requestId",
-        "limit"
+        "v",
+        "type"
       ]
     },
     {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "const": 1
+        },
         "type": {
-          "const": "search-result"
+          "const": "search"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "query": {
+          "$ref": "#/$defs/query"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
         }
       },
       "required": [
+        "v",
+        "type",
         "requestId",
+        "query"
+      ]
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "search-result"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        },
+        "hasMore": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "requestId",
+        "items",
         "hasMore"
       ]
     },
     {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "const": 1
+        },
         "type": {
           "const": "open-page"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "openRef": {
+          "$ref": "#/$defs/requestId"
         }
       },
       "required": [
+        "v",
+        "type",
         "requestId",
         "openRef"
       ]
     },
     {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "const": 1
+        },
         "type": {
           "const": "open-result"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "ok": {
+          "const": true
         }
       },
       "required": [
+        "v",
+        "type",
         "requestId",
         "ok"
       ]
     },
     {
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "v": {
+          "const": 1
+        },
         "type": {
           "const": "error"
+        },
+        "requestId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/requestId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "code": {
+          "enum": [
+            "BAD_REQUEST",
+            "INVALID_REQUEST",
+            "INCOMPATIBLE_VERSION",
+            "NOT_READY",
+            "RESULT_EXPIRED",
+            "OPEN_FAILED",
+            "SEARCH_FAILED",
+            "PROFILE_CONFLICT",
+            "HOST_NOT_FOUND",
+            "DISCONNECTED",
+            "TIMEOUT",
+            "PERMISSION_REQUIRED"
+          ]
+        },
+        "message": {
+          "type": "string"
         }
       },
       "required": [
+        "v",
+        "type",
         "code"
       ]
     }
-  ]
+  ],
+  "$defs": {
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "x-utf16-maxLength": 100,
+      "$comment": "Normative maximum counts UTF-16 code units. maxLength alone counts Unicode code points and is insufficient; enforce x-utf16-maxLength. Strings must contain Unicode scalar values; lone surrogates are rejected."
+    },
+    "query": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 200,
+      "x-utf16-maxLength": 200,
+      "$comment": "Normative maximum counts UTF-16 code units. maxLength alone counts Unicode code points and is insufficient; enforce x-utf16-maxLength. Strings must contain Unicode scalar values; lone surrogates are rejected."
+    },
+    "profileLabel": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 64,
+      "x-utf16-maxLength": 64,
+      "$comment": "Normative maximum counts UTF-16 code units. maxLength alone counts Unicode code points and is insufficient; enforce x-utf16-maxLength. Strings must contain Unicode scalar values; lone surrogates are rejected.",
+      "pattern": "^[^\\r\\n]*$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "url",
+        "domain",
+        "openRef"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
+          "description": "HTTP(S) result data with hostname. Apply the normative authority/escaping/control-character rules; do not use schema pattern alone as a URL validator."
+        },
+        "domain": {
+          "type": "string"
+        },
+        "openRef": {
+          "$ref": "#/$defs/uuid"
+        }
+      }
+    }
+  }
 }

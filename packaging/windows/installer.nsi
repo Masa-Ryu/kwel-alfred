@@ -21,7 +21,7 @@ Section "Kwel Connect"
   File /oname=kwel-bridge.exe "${PAYLOAD}\kwel-bridge.exe"
   ExecWait '"$PLUGINSDIR\payload\kwel-native-host.exe" install --source "$PLUGINSDIR\payload"' $0
   ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK "Kwel Connect could not be installed safely. Disable Local Integration and check that no other Host registration conflicts." /SD IDOK
+    MessageBox MB_ICONSTOP|MB_OK "Kwel Connect could not be installed safely. Disable Local Connection and check that no other Host registration conflicts." /SD IDOK
     SetErrorLevel 1
     Abort
   ${EndIf}
@@ -37,7 +37,7 @@ Section "Uninstall"
   CopyFiles /SILENT "$INSTDIR\bin\kwel-native-host.exe" "$PLUGINSDIR\kwel-native-host.exe"
   ExecWait '"$PLUGINSDIR\kwel-native-host.exe" uninstall' $0
   ${If} $0 != 0
-    MessageBox MB_ICONSTOP|MB_OK "Kwel Connect is in use or could not be removed safely. Disable Local Integration, then retry." /SD IDOK
+    MessageBox MB_ICONSTOP|MB_OK "Kwel Connect is in use or could not be removed safely. Disable Local Connection, then retry." /SD IDOK
     SetErrorLevel 1
     Abort
   ${EndIf}

@@ -19,9 +19,16 @@ cargo audit --deny warnings
 python3 scripts/build.py package
 python3 scripts/build.py verify
 python3 -m unittest discover -s scripts/tests -v
+cargo build -p kwel-protocol --example native-conformance --locked
+node scripts/test-kwel-parser.cjs /path/to/pinned/kwel-checkout
+node --test scripts/tests/chrome-e2e.test.mjs
 ```
 
 Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` additionally exercises actual package install/upgrade/removal only on disposable GitHub-hosted runners; it refuses ordinary local environments. Do not run installer tests against a real user home.
+
+The current Kwel parser comparison uses the exact counterpart commit/hashes in `crates/kwel-protocol/tests/fixtures/native-messaging-v1.source.json` and its locked TypeScript/Zod dependencies. CI checks out that commit read-only and installs with pnpm 10.17.1 / `--frozen-lockfile --ignore-scripts`; it executes the real parser/builders plus Rust frames, without building or changing the Kwel search engine. The 81 Go-derived cases retain their exact original verdicts/normalizations through a test-only historical codec snapshot; production Native wire rules are tested separately. Shared 65-case Native conformance and nine well-formed Unicode boundaries are the current parser evidence. Native string rules, including lone-surrogate rejection, are documented in `native-messaging-v1.md`.
+
+For real Chrome-launched Host, two-profile history/ranking/openRef and OS approval checks, use [the E2E verifier and manual sign-off procedure](chrome-e2e.md). Node/CDP guard tests, parser tests and the installed synthetic-peer test are not real Chrome/Alfred E2E and must never be reported as such.
 
 macOS builds need both Darwin Rust targets, Xcode's `lipo`, `pkgbuild`, `productbuild`, the pinned LLVM tools component, and **resvg 0.45.1** (`cargo install resvg --version 0.45.1 --locked`). Windows packaging needs NSIS 3.11. Ubuntu packaging uses `dpkg-deb`. Install the audit tool with `cargo install cargo-audit --version 0.22.2 --locked`. These are development tools; end users install prebuilt packages.
 

@@ -51,7 +51,7 @@ pub fn notice(title: &str) -> Output {
 pub fn configuration_required() -> Output {
     let mut output = notice("Configure the Kwel Profile ID");
     output.items[0].subtitle =
-        "Paste the Profile ID from Kwel Settings → Local Integration into Workflow Configuration."
+        "Paste the Profile ID from Kwel Settings → Local Connection into Workflow Configuration."
             .into();
     output
 }

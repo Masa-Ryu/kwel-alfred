@@ -100,6 +100,15 @@ def installed_protocol(host_binary, client_binary, workflow_cli=None):
         send({"v": 1, "type": "open-result", "requestId": request["requestId"], "ok": True})
         assert complete(opening)["ok"] is True
         assert complete(client("open", "--ref", reference), successful=False)["code"] == "RESULT_EXPIRED"
+        empty = client("search", "--query", "", "--limit", "20")
+        request = receive("search")
+        assert request["query"] == "" and "profileId" not in request
+        # These valid notices must neither terminate the installed Host nor
+        # complete the pending search. The following response is its only reply.
+        for code in ("BAD_REQUEST", "INCOMPATIBLE_VERSION", "NOT_READY", "SEARCH_FAILED", "RESULT_EXPIRED", "OPEN_FAILED"):
+            send({"v": 1, "type": "error", "requestId": None, "code": code})
+        send({"v": 1, "type": "search-result", "requestId": request["requestId"], "items": [], "hasMore": False})
+        assert complete(empty)["items"] == []
         if workflow_cli:
             alfred = subprocess.Popen([str(workflow_cli), "search", "--profile-id", profile, "--query", "Kyoto", "--limit", "20", "--format", "alfred"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             request = receive("search")

@@ -33,6 +33,7 @@ fn installation_is_idempotent_exact_origin_and_removes_only_owned_files() {
         let value: Manifest =
             serde_json::from_slice(&secure::read(&layout.manifest(name)).unwrap()).unwrap();
         assert_eq!(value.path, layout.binary());
+        assert_eq!(value.description, "Kwel Local Connection");
         assert_eq!(
             value.allowed_origins,
             vec![format!("chrome-extension://{EXTENSION_ID}/")]
@@ -44,6 +45,24 @@ fn installation_is_idempotent_exact_origin_and_removes_only_owned_files() {
     assert!(unrelated.exists());
     assert!(!layout.binary().exists());
     assert!(!layout.manifest(HOST_NAME).exists());
+}
+
+#[test]
+fn previous_local_integration_description_is_safely_updated() {
+    let (_temp, layout, runtime, source) = fixture();
+    install::install(&source, &layout, &runtime, false).unwrap();
+    for name in [HOST_NAME, LEGACY_HOST_NAME] {
+        let path = layout.manifest(name);
+        let mut manifest: Manifest = serde_json::from_slice(&secure::read(&path).unwrap()).unwrap();
+        manifest.description = "Kwel Local Integration".into();
+        secure::atomic_write(&path, &serde_json::to_vec(&manifest).unwrap(), false).unwrap();
+    }
+    assert!(!install::install(&source, &layout, &runtime, false).unwrap());
+    for name in [HOST_NAME, LEGACY_HOST_NAME] {
+        let manifest: Manifest =
+            serde_json::from_slice(&secure::read(&layout.manifest(name)).unwrap()).unwrap();
+        assert_eq!(manifest.description, "Kwel Local Connection");
+    }
 }
 #[test]
 fn session_lifetime_lock_prevents_install_or_uninstall_races_but_allows_reuse() {
