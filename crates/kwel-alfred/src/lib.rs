@@ -1,4 +1,4 @@
-use kwel_protocol::{Code, Item, LocalResponse};
+use kwel_protocol::{Code, Item, LocalResponse, Profile};
 use serde::Serialize;
 use std::collections::BTreeMap;
 /// Chrome activation is permitted only after the selected profile acknowledges
@@ -14,6 +14,8 @@ pub async fn open_acknowledged(
 }
 pub const WAIT_VARIABLE: &str = "KWEL_CONNECTION_DEADLINE";
 pub const WAIT_MILLIS: u64 = 45_000;
+pub const PROFILE_DIAGNOSTIC_VARIABLE: &str = "KWEL_PROFILE_DIAGNOSTIC_LAST_ATTEMPT";
+pub const PROFILE_DIAGNOSTIC_INTERVAL_MILLIS: u64 = 5 * 60 * 1_000;
 #[derive(Debug, Serialize)]
 pub struct Output {
     pub skipknowledge: bool,
@@ -54,6 +56,44 @@ pub fn configuration_required() -> Output {
         "Paste the Profile ID from Kwel Settings → Local Connection into Workflow Configuration."
             .into();
     output
+}
+pub fn can_diagnose_profile_mismatch(code: Code) -> bool {
+    matches!(code, Code::Disconnected | Code::HostNotFound)
+}
+pub fn profile_diagnostic_due(previous_deadline: &str, previous_attempt: &str, now: u64) -> bool {
+    let deadline_expired = previous_deadline
+        .parse::<u64>()
+        .ok()
+        .is_some_and(|value| value > 0 && value <= now);
+    if !deadline_expired {
+        return false;
+    }
+    match previous_attempt
+        .parse::<u64>()
+        .ok()
+        .filter(|value| *value > 0 && *value <= now)
+    {
+        Some(previous) => now.saturating_sub(previous) >= PROFILE_DIAGNOSTIC_INTERVAL_MILLIS,
+        None => true,
+    }
+}
+pub fn profile_mismatch(configured_profile: &str, profiles: &[Profile]) -> Option<Output> {
+    if !kwel_protocol::id(configured_profile) {
+        return None;
+    }
+    let configured_is_connected = profiles
+        .iter()
+        .any(|profile| profile.profile_id == configured_profile);
+    let another_is_connected = profiles
+        .iter()
+        .any(|profile| profile.profile_id != configured_profile);
+    if configured_is_connected || !another_is_connected {
+        return None;
+    }
+    let mut output = notice("Kwel Profile ID does not match");
+    output.items[0].subtitle =
+        "Copy the Profile ID again from Kwel Settings → Local Connection.".into();
+    Some(output)
 }
 pub fn results(items: Vec<Item>, has_more: bool, profile: &str) -> Output {
     if items.is_empty() {

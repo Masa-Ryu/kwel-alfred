@@ -1,4 +1,4 @@
-use kwel_alfred::{Output, WAIT_VARIABLE};
+use kwel_alfred::{Output, PROFILE_DIAGNOSTIC_VARIABLE, WAIT_VARIABLE};
 use kwel_client::{Client, Operation};
 #[cfg(target_os = "macos")]
 use kwel_native_host::install::{self, Layout};
@@ -33,27 +33,83 @@ async fn search(args: &[String]) -> Output {
         Ok(Operation::Request(request @ LocalRequest::Search { .. })) => request,
         _ => return kwel_alfred::notice("Enter a search query of up to 200 characters."),
     };
-    let result = async {
-        let paths = RuntimePaths::current()?;
-        #[cfg(target_os = "macos")]
-        {
-            let executable = std::env::current_exe()?;
-            let source = executable.parent().ok_or(Error(Code::UnsafePath))?;
-            install::install(source, &Layout::current()?, &paths, true)?;
+    let paths = match RuntimePaths::current() {
+        Ok(paths) => paths,
+        Err(error) => return kwel_alfred::notice(error.0.message()),
+    };
+    #[cfg(target_os = "macos")]
+    {
+        let executable = match std::env::current_exe() {
+            Ok(executable) => executable,
+            Err(error) => {
+                return kwel_alfred::notice(Error::from(error).0.message());
+            }
+        };
+        let source = match executable.parent() {
+            Some(source) => source,
+            None => return kwel_alfred::notice(Code::UnsafePath.message()),
+        };
+        let layout = match Layout::current() {
+            Ok(layout) => layout,
+            Err(error) => return kwel_alfred::notice(error.0.message()),
+        };
+        if let Err(error) = install::install(source, &layout, &paths, true) {
+            return kwel_alfred::notice(error.0.message());
         }
-        Client { paths }.request(operation).await
     }
-    .await;
-    match result {
+    let client = Client { paths };
+    match client.request(operation).await {
         Ok(response) => kwel_alfred::response(response, &profile),
-        Err(Error(code @ (Code::Disconnected | Code::HostNotFound))) => {
+        Err(Error(code)) if kwel_alfred::can_diagnose_profile_mismatch(code) => {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis() as u64;
-            kwel_alfred::wait(code, &std::env::var(WAIT_VARIABLE).unwrap_or_default(), now)
+            wait_or_diagnose(
+                &client,
+                code,
+                &profile,
+                &std::env::var(WAIT_VARIABLE).unwrap_or_default(),
+                &std::env::var(PROFILE_DIAGNOSTIC_VARIABLE).unwrap_or_default(),
+                now,
+            )
+            .await
         }
         Err(error) => kwel_alfred::notice(error.0.message()),
+    }
+}
+async fn wait_or_diagnose(
+    client: &Client,
+    code: Code,
+    configured_profile: &str,
+    previous_deadline: &str,
+    previous_attempt: &str,
+    now: u64,
+) -> Output {
+    let attempt_diagnostic =
+        kwel_alfred::profile_diagnostic_due(previous_deadline, previous_attempt, now);
+    let output = if attempt_diagnostic {
+        match tokio::time::timeout(std::time::Duration::from_secs(5), client.profiles()).await {
+            Ok(Ok(profiles)) => kwel_alfred::profile_mismatch(configured_profile, &profiles)
+                .unwrap_or_else(|| kwel_alfred::wait(code, previous_deadline, now)),
+            _ => kwel_alfred::wait(code, previous_deadline, now),
+        }
+    } else {
+        kwel_alfred::wait(code, previous_deadline, now)
+    };
+    let attempt = if attempt_diagnostic {
+        now.to_string()
+    } else {
+        previous_attempt.to_owned()
+    };
+    if attempt.is_empty() {
+        output
+    } else {
+        let mut output = output;
+        output
+            .variables
+            .insert(PROFILE_DIAGNOSTIC_VARIABLE.into(), attempt);
+        output
     }
 }
 async fn open(args: &[String]) -> Result<()> {
