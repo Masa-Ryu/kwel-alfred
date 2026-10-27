@@ -23,7 +23,9 @@ Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` ad
 
 Protocol compatibility is a behavioral result, not equality of repository commits or document hashes. `scripts/test-kwel-parser.cjs` reads Connect's canonical Native65 directly and runs the real TypeScript/Zod parser/builders plus actual Rust frames and 12 Unicode boundaries. It logs both checkout SHAs as evidence, without reading Kwel pin metadata, requiring latest HEADs, or comparing Markdown/Schema hashes. There is no separate local-review bypass mode.
 
-Kwel's ordinary protocol tests are offline and independent. Local pair tests use `KWEL_CONNECT_ROOT` as the filesystem path to the Connect checkout supplying the canonical corpus and Rust adapter; CI passes its resolved checkout path to the same tests. This is not a CI source-version selector. The suite also checks URL acceptance/projection, ranking, empty queries, Unicode and real Chrome search/open.
+Kwel's ordinary protocol tests are offline and independent. `pnpm test:local-protocol:pair` runs Vitest conformance tests against Connect's Native65 corpus and Rust adapter, including Unicode boundaries and URL acceptance/projection. These tests use `KWEL_CONNECT_ROOT` as the filesystem path to the Connect checkout; CI passes its resolved checkout path to the same tests. This is not a CI source-version selector.
+
+Real Chrome E2E runs separately in the same **Native v1 pair** CI job via `scripts/test-native-chrome.mjs`. It checks Chrome-launched Host communication, search ranking/URLs, empty searches, profile isolation and page opening with single-use openRefs.
 
 Kwel's required n100 **Native v1 pair** job resolves Connect once per job in **Resolve latest Connect source**: while Connect PR #1 is open, it selects that PR's latest HEAD; after the PR is merged, it selects the latest `main` HEAD. An unmerged closed PR, API error, invalid full SHA or failed commit confirmation fails closed. The job records the resolved SHA, confirms the checkout matches it, and uses that same Connect checkout for all paired Rust/parser tests, Host builds and real Chrome verification.
 
