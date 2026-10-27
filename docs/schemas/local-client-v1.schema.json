@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Masa-Ryu/kwel-connect/raw/main/docs/schemas/local-client-v1.schema.json",
+  "title": "Kwel Local Client v1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    }
+  ],
+  "$defs": {
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "x-utf16-maxLength": 100
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      "minLength": 36,
+      "maxLength": 36
+    },
+    "request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "v": {
+              "const": 1
+            },
+            "type": {
+              "const": "profile-probe"
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "profileId": {
+              "$ref": "#/$defs/uuid"
+            }
+          },
+          "required": [
+            "v",
+            "type",
+            "requestId",
+            "profileId"
+          ],
+          "x-direction": "client-to-host"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "v": {
+              "const": 1
+            },
+            "type": {
+              "const": "search"
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "profileId": {
+              "$ref": "#/$defs/uuid"
+            },
+            "query": {
+              "type": "string",
+              "maxLength": 200,
+              "x-utf16-maxLength": 200
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "v",
+            "type",
+            "requestId",
+            "profileId",
+            "query",
+            "limit"
+          ],
+          "x-direction": "client-to-host"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "v": {
+              "const": 1
+            },
+            "type": {
+              "const": "open-page"
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "profileId": {
+              "$ref": "#/$defs/uuid"
+            },
+            "openRef": {
+              "$ref": "#/$defs/uuid"
+            }
+          },
+          "required": [
+            "v",
+            "type",
+            "requestId",
+            "profileId",
+            "openRef"
+          ],
+          "x-direction": "client-to-host"
+        }
+      ]
+    },
+    "response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "v": {
+              "const": 1
+            },
+            "type": {
+              "const": "profile-info"
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "profileId": {
+              "$ref": "#/$defs/uuid"
+            },
+            "profileLabel": {
+              "type": "string",
+              "maxLength": 64,
+              "x-utf16-maxLength": 64,
+              "not": {
+                "pattern": "[\\r\\n]"
+              }
+            },
+            "hostVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "Nonempty installed Host version, at most 100 UTF-8 bytes. Standard maxLength alone counts code points."
+            }
+          },
+          "required": [
+            "v",
+            "type",
+            "requestId",
+            "profileId",
+            "profileLabel",
+            "hostVersion"
+          ],
+          "x-direction": "host-to-client"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "v": {
+              "const": 1
+            },
+            "type": {
+              "const": "search-result"
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "items": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "title",
+                  "url",
+                  "domain",
+                  "openRef"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "[^\\u0009-\\u000d\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                    "description": "Contains at least one character outside Unicode White_Space, as checked by Rust str::trim."
+                  },
+                  "url": {
+                    "type": "string",
+                    "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
+                    "description": "HTTP(S) result data. Host, escaping and control-character validation follow the normative Native v1 rules and current Rust boundary tests."
+                  },
+                  "domain": {
+                    "type": "string"
+                  },
+                  "openRef": {
+                    "$ref": "#/$defs/uuid"
+                  }
+                }
+              }
+            },
+            "hasMore": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "v",
+            "type",
+            "requestId",
+            "items",
+            "hasMore"
+          ],
+          "x-direction": "host-to-client"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "v": {
+              "const": 1
+            },
+            "type": {
+              "const": "open-result"
+            },
+            "requestId": {
+              "$ref": "#/$defs/requestId"
+            },
+            "ok": {
+              "const": true
+            }
+          },
+          "required": [
+            "v",
+            "type",
+            "requestId",
+            "ok"
+          ],
+          "x-direction": "host-to-client"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "v": {
+              "const": 1
+            },
+            "type": {
+              "const": "error"
+            },
+            "requestId": {
+              "type": "string",
+              "description": "Echoes a decoded request ID even if request validation failed. Empty string when the request could not be decoded. Never null. The transport response-byte limit still applies; this is not the valid requestId type."
+            },
+            "code": {
+              "enum": [
+                "BAD_REQUEST",
+                "INVALID_REQUEST",
+                "INCOMPATIBLE_VERSION",
+                "NOT_READY",
+                "RESULT_EXPIRED",
+                "OPEN_FAILED",
+                "SEARCH_FAILED",
+                "PROFILE_CONFLICT",
+                "HOST_NOT_FOUND",
+                "DISCONNECTED",
+                "TIMEOUT",
+                "PERMISSION_REQUIRED",
+                "BUSY",
+                "UNSAFE_PATH",
+                "INSTALL_CONFLICT",
+                "DOWNGRADE_REFUSED",
+                "HOST_IN_USE"
+              ]
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "v",
+            "type",
+            "requestId",
+            "code",
+            "message"
+          ],
+          "x-direction": "host-to-client"
+        }
+      ]
+    }
+  },
+  "description": "Public Local Client requests and responses, independent of Native Messaging and Alfred. Each message type is a closed object. Requests require profileId and search requires an explicit limit; no Native defaults are inherited.",
+  "$comment": "Use the request or response branch for the appropriate direction. default is an annotation, not value insertion. x-utf16-maxLength is normative for valid request IDs, labels and queries but is not enforced by standard validators. Transport syntax/size, URL semantics, UTF-8 hostVersion bytes and request/session correlation require implementation checks; see local-client-protocol-v1.md."
+}

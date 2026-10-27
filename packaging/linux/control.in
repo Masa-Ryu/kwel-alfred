@@ -1,0 +1,7 @@
+Package: kwel-connect
+Version: @VERSION@
+Architecture: @ARCH@
+Maintainer: Kwel <noreply@kwel.ryu.zone>
+Depends: libc6 (>= 2.39), libgcc-s1
+Description: Kwel official Local Connection Native Host and JSON client
+Homepage: https://github.com/Masa-Ryu/kwel-connect

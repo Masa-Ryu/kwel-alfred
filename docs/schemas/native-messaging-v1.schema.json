@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Masa-Ryu/kwel-connect/raw/main/docs/schemas/native-messaging-v1.schema.json",
+  "title": "Kwel Native Messaging v1",
+  "description": "Native-only wire shapes. x-utf16-maxLength is normative; standard maxLength counts Unicode code points. Transport enforces 1–1,000,000 UTF-8 bytes. Local Client routing is a separate protocol.",
+  "$defs": {
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "x-utf16-maxLength": 100
+    },
+    "profileId": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "profileLabel": {
+      "type": "string",
+      "maxLength": 64,
+      "x-utf16-maxLength": 64,
+      "not": {
+        "pattern": "[\\r\\n]"
+      },
+      "default": ""
+    },
+    "query": {
+      "type": "string",
+      "maxLength": 200,
+      "x-utf16-maxLength": 200
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 20
+    },
+    "openRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "x-utf16-maxLength": 100,
+      "description": "Opaque Native request reference. Kwel issues UUIDs and revalidates its current reference table. Local Client requests separately require UUIDs."
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "[^\\u0009-\\u000d\\u0020\\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+          "description": "Contains at least one character outside Unicode White_Space, as checked by Rust str::trim."
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
+          "description": "HTTP(S) result data. Standard URL parsing and the authority/escaping guards in Native v1 remain normative; validation never rewrites the value."
+        },
+        "domain": {
+          "type": "string"
+        },
+        "openRef": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        }
+      },
+      "required": [
+        "title",
+        "url",
+        "domain",
+        "openRef"
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "hello"
+        },
+        "profileId": {
+          "$ref": "#/$defs/profileId"
+        },
+        "profileLabel": {
+          "$ref": "#/$defs/profileLabel"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "profileId"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "host-to-extension",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "hello-ack"
+        }
+      },
+      "required": [
+        "v",
+        "type"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "host-to-extension",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "ping"
+        }
+      },
+      "required": [
+        "v",
+        "type"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "pong"
+        }
+      },
+      "required": [
+        "v",
+        "type"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "host-to-extension",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "search"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "query": {
+          "$ref": "#/$defs/query"
+        },
+        "limit": {
+          "$ref": "#/$defs/limit"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "requestId",
+        "query"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "search-result"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        },
+        "hasMore": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "requestId",
+        "items",
+        "hasMore"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "host-to-extension",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "open-page"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "openRef": {
+          "$ref": "#/$defs/openRef"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "requestId",
+        "openRef"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "open-result"
+        },
+        "requestId": {
+          "$ref": "#/$defs/requestId"
+        },
+        "ok": {
+          "const": true
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "requestId",
+        "ok"
+      ]
+    },
+    {
+      "type": "object",
+      "x-direction": "extension-to-host",
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "type": "integer",
+          "const": 1
+        },
+        "type": {
+          "const": "error"
+        },
+        "requestId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/requestId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null or omission is an uncorrelated notice; neither may satisfy a pending request."
+        },
+        "code": {
+          "enum": [
+            "BAD_REQUEST",
+            "INVALID_REQUEST",
+            "INCOMPATIBLE_VERSION",
+            "NOT_READY",
+            "RESULT_EXPIRED",
+            "OPEN_FAILED",
+            "SEARCH_FAILED",
+            "PROFILE_CONFLICT",
+            "HOST_NOT_FOUND",
+            "DISCONNECTED",
+            "TIMEOUT",
+            "PERMISSION_REQUIRED"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "default": ""
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "code"
+      ]
+    }
+  ],
+  "$comment": "This Draft 2020-12 Schema and native-messaging-v1.md specify the Native wire contract; the Native65 JSON is conformance data. default does not modify instances. Standard validators ignore x-utf16-maxLength and x-direction; implementations must enforce UTF-16 bounds, well-formed Unicode, transport syntax/size, URL semantics, direction and session state separately."
+}

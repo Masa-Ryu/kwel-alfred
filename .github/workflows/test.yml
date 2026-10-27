@@ -1,0 +1,220 @@
+name: Test
+on:
+  pull_request:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+    inputs:
+      release-artifacts:
+        description: Keep installers for review for 2 days (compatibility artifacts are always saved)
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      release-artifacts:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.event_name }}-${{ github.repository }}-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  rust:
+    name: Rust and installer (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-26
+            name: macos-arm64
+            release: true
+          - runner: macos-26-intel
+            name: macos-intel
+            release: false
+          - runner: windows-2025
+            name: windows-x64
+            release: true
+          - runner: ubuntu-24.04
+            name: ubuntu-amd64
+            release: true
+          - runner: ubuntu-24.04-arm
+            name: ubuntu-arm64
+            release: true
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy --component llvm-tools-preview
+          if [ "$RUNNER_OS" = macOS ]; then
+            rustup target add --toolchain 1.99.0 aarch64-apple-darwin x86_64-apple-darwin
+            cargo install resvg --version 0.45.1 --locked --root "$RUNNER_TEMP/kwel-tools"
+            printf '%s\n' "$RUNNER_TEMP/kwel-tools/bin" >> "$GITHUB_PATH"
+          fi
+      - name: Install Windows package builder
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'C:\Program Files (x86)\NSIS\makensis.exe')) {
+            choco install nsis --version=3.11 --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Unit, protocol, Native Messaging, IPC and registration tests
+        run: cargo test --workspace --locked
+      - name: Alfred shell argument and failure notification regression tests
+        run: bash scripts/test-workflow-argv.sh
+      - name: Distribution compatibility guard tests
+        run: python3 -m unittest discover -s scripts/tests -v
+      - name: Build installers and official Alfred Workflow
+        run: python3 scripts/build.py package
+      - name: Verify package contents and permissions
+        run: python3 scripts/build.py verify
+      - name: Install, upgrade, register and uninstall on this OS
+        run: python3 scripts/test-installer.py
+      - name: Save validated release files
+        if: matrix.release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            dist/*.pkg
+            dist/*.exe
+            dist/*.deb
+            dist/*.alfredworkflow
+            dist/BUILDINFO.json
+          if-no-files-found: error
+          retention-days: ${{ inputs.release-artifacts && 2 || 1 }}
+  native-protocol:
+    name: Native v1 corpus and verifier guards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify canonical Native v1 corpus provenance
+        run: python3 scripts/check-native-fixture.py
+      - name: Select runner-provided Node.js 24
+        run: |
+          for node_bin in "$RUNNER_TOOL_CACHE"/node/24.*/x64/bin; do
+            if [ -x "$node_bin/node" ]; then
+              "$node_bin/node" -e 'if (process.versions.node.split(".")[0] !== "24") process.exit(1); console.log(process.version)'
+              printf '%s\n' "$node_bin" >> "$GITHUB_PATH"
+              exit 0
+            fi
+          done
+          echo 'Node.js 24 is missing from the hosted runner tool cache.' >&2
+          exit 1
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - name: Rust Native conformance and security boundary regressions
+        run: cargo test -p kwel-protocol --locked
+      - name: Chrome verifier guard tests (not real E2E)
+        run: |
+          node --check scripts/test-native-chrome.mjs
+          node --check scripts/test-chrome-e2e.mjs
+          node --test scripts/tests/chrome-e2e.test.mjs
+      - name: Record the private counterpart verification location
+        run: |
+          printf '%s\n' '## Native v1 pair' 'The matching TypeScript / real Chrome + Rust Host checks run in the private Kwel repository, without exporting its source or adding cross-repository PR secrets.' >> "$GITHUB_STEP_SUMMARY"
+  compatibility:
+    name: Released package compatibility (${{ matrix.name }})
+    needs: rust
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-26.04
+            name: ubuntu-26-amd64
+            artifact: ubuntu-amd64
+            source_tests: true
+            release: false
+          - runner: ubuntu-26.04-arm
+            name: ubuntu-26-arm64
+            artifact: ubuntu-arm64
+            source_tests: true
+            release: false
+          - runner: macos-15
+            name: macos-15-arm64
+            artifact: macos-arm64
+            source_tests: false
+            release: false
+          - runner: macos-15-intel
+            name: macos-15-intel
+            artifact: macos-arm64
+            source_tests: false
+            release: false
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install the unchanged Rust toolchain for new-OS source tests
+        if: matrix.source_tests
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy --component llvm-tools-preview
+      - name: New-OS source tests (separate from release package execution)
+        if: matrix.source_tests
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo test --workspace --locked
+          cargo build --workspace --release --locked
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/compatibility
+      - name: Verify the original release producer and unchanged package bytes
+        env:
+          RELEASE_ARTIFACT: ${{ matrix.artifact }}
+        run: python3 scripts/build.py verify-artifact dist/compatibility --artifact-name "$RELEASE_ARTIFACT"
+      - name: Verify actual package ABI, contents and permissions
+        run: python3 scripts/build.py verify dist/compatibility
+      - name: Install and execute the original release package on this OS
+        run: python3 scripts/test-installer.py --artifact-dir dist/compatibility
+  collection:
+    name: Verify release collection
+    needs: [rust, compatibility]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: release-inputs
+      - name: Collect exactly five verified distribution files and checksums
+        run: |
+          python3 scripts/collect-release.py release-inputs release
+          cd release
+          sha256sum --check SHA256SUMS
+  audit:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup toolchain install 1.99.0 --profile minimal
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - run: cargo audit --deny warnings

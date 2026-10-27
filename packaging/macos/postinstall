@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+# Home-domain packages run as the consenting current user, never root.
+if [ "$(id -u)" -eq 0 ]; then
+  echo 'Install Kwel Connect in the current-user home domain.' >&2
+  exit 1
+fi
+kwel_payload="$HOME/Library/Application Support/Kwel/NativeBridge/installer-payload"
+exec "$kwel_payload/kwel-native-host" install --source "$kwel_payload"

@@ -1,0 +1,5 @@
+{
+  "extensionId": "mhablbmgafbdofgaffhdnnknjhafmlin",
+  "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAodO50AGZ1sQTpHacx9aFf416r4ogVYiFhU/gFlF7n/fzkuxWShtlT583n/ubJ3SXvloqv3h7us40iKXH5FxyZvN7UuqTZEqvv+/yL6shri/RQ4Xk3vRNqc36QL8MD3r1zxmE7fE0i7eLT02vRzV4eW1P1OGLD3PAC/mofEicleG2/SCRMcu4ps5FicTBXBg3nvHfyadTVw5R4aQQ+xkG6ZTevDel5tR8eRkXvbnjSPrN5KN6uGRs7a7taSAvA6olRev91si/TPHrU2brJ8MswPZXuoVSG+wPJ3Ol25PftX1K11rrADAJ4kCTDqeWV0WIwkGehRSuOWI/9eKFITzlUQIDAQAB",
+  "purpose": "Public Web Store key, not a credential; preserves published identity only in disposable unpacked E2E copies."
+}
