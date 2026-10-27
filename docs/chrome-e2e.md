@@ -57,7 +57,11 @@ Automated package CI covers install/reinstall/removal with a synthetic Native pe
 
 ## Automated source-built pair check
 
-Kwel's required **Native v1 pair** job runs on the Linux n100 runner. `KWEL_CONNECT_REF` selects a reviewed release tag or temporary pre-release SHA independently from Kwel's commit. The job records both actual source SHAs, builds that Rust version and the current production extension, then invokes:
+Kwel's required **Native v1 pair** job runs on the Linux n100 runner. **Resolve latest Connect source** automatically selects Connect PR #1's latest HEAD while open, or the latest `main` HEAD after it is merged. An unmerged closed PR, API error, invalid full SHA or failed commit confirmation fails closed. The job records the resolved Connect SHA and Kwel SHA, confirms the Connect checkout matches the resolved SHA, and uses that same checkout for every paired Rust/parser test, Host build and Chrome verification. Selecting the latest HEAD determines the source under test; Protocol v1 compatibility is behavioral conformance and does not require equal Connect/Kwel SHAs.
+
+For manual verification, choose the particular Connect commit/build under review and record both SHAs as described above; this differs from automatic CI selection. `KWEL_CONNECT_ROOT` is the Connect checkout path consumed by local pair tests, including those run in CI, not a CI source-version selector.
+
+The CI job builds the selected Rust source and current production extension, then invokes:
 
 ```sh
 node /path/to/kwel-connect/scripts/test-native-chrome.mjs \

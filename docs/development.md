@@ -23,7 +23,11 @@ Tests use synthetic IDs and isolated directories. `scripts/test-installer.py` ad
 
 Protocol compatibility is a behavioral result, not equality of repository commits or document hashes. `scripts/test-kwel-parser.cjs` reads Connect's canonical Native65 directly and runs the real TypeScript/Zod parser/builders plus actual Rust frames and 12 Unicode boundaries. It logs both checkout SHAs as evidence, without reading Kwel pin metadata, requiring latest HEADs, or comparing Markdown/Schema hashes. There is no separate local-review bypass mode.
 
-Kwel's ordinary protocol tests are offline and independent. Its dedicated pair suite uses `KWEL_CONNECT_ROOT` to read Connect's corpus and adapter directly; it also checks URL acceptance/projection, ranking, empty queries, Unicode and real Chrome search/open. The required n100 job selects a reproducible Connect version through `KWEL_CONNECT_REF`: prefer an immutable release tag once available; a reviewed full SHA is a temporary pre-release baseline. Updating that baseline is explicit and does not require either repository to chase the other's latest commit. Public Connect CI receives neither private source nor cross-repository credentials.
+Kwel's ordinary protocol tests are offline and independent. Local pair tests use `KWEL_CONNECT_ROOT` as the filesystem path to the Connect checkout supplying the canonical corpus and Rust adapter; CI passes its resolved checkout path to the same tests. This is not a CI source-version selector. The suite also checks URL acceptance/projection, ranking, empty queries, Unicode and real Chrome search/open.
+
+Kwel's required n100 **Native v1 pair** job resolves Connect once per job in **Resolve latest Connect source**: while Connect PR #1 is open, it selects that PR's latest HEAD; after the PR is merged, it selects the latest `main` HEAD. An unmerged closed PR, API error, invalid full SHA or failed commit confirmation fails closed. The job records the resolved SHA, confirms the checkout matches it, and uses that same Connect checkout for all paired Rust/parser tests, Host builds and real Chrome verification.
+
+Selecting the latest HEAD determines what is tested; Protocol v1 compatibility is still behavioral conformance, not equality of Connect/Kwel SHAs or document hashes. A developer may manually choose a specific commit or tag for local verification and record both actual SHAs; that does not override automatic CI selection. Public Connect CI receives neither private source nor cross-repository credentials.
 
 For real Chrome-launched Host, two-profile history/ranking/openRef and OS approval checks, use [the E2E verifier and manual sign-off procedure](chrome-e2e.md). Node/CDP guard tests, parser tests and the installed synthetic-peer test are not real Chrome/Alfred E2E and must never be reported as such.
 
@@ -123,7 +127,8 @@ The shared corpus is checked out with LF on every OS via `.gitattributes`; Windo
 
 | Reference | Role |
 | --- | --- |
-| Kwel CI's `KWEL_CONNECT_REF` | Reproducible version selection: immutable release tag preferred, reviewed pre-release SHA allowed. Not a latest-HEAD equality rule. |
+| Kwel CI's **Resolve latest Connect source** | Automatic per-job selection: open PR #1's latest HEAD, or latest `main` HEAD after merge. Records the resolved SHA and reuses the same checkout throughout the job; invalid/failed resolution fails closed. |
+| Local pair tests' `KWEL_CONNECT_ROOT` | Filesystem path to a Connect checkout, also set by CI to its resolved checkout path. Not a CI version-selection variable. |
 | Connect's `crates/kwel-protocol/tests/fixtures/native-messaging-v1.source.json` | Historical Kwel adoption origin and corpus integrity. No current-Kwel tracking requirement. |
 | Pair logs' Connect/Kwel SHAs | Evidence of the actual two implementations tested; not compared to each other or to document hashes. |
 
