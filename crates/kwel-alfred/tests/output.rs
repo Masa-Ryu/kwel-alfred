@@ -1,5 +1,16 @@
 use kwel_alfred::*;
-use kwel_protocol::{Code, Item};
+use kwel_protocol::{Code, Item, Profile};
+const PROFILE_A: &str = "00000000-0000-4000-8000-00000000000a";
+const PROFILE_B: &str = "00000000-0000-4000-8000-00000000000b";
+
+fn profile(profile_id: &str, profile_label: &str) -> Profile {
+    Profile {
+        profile_id: profile_id.into(),
+        profile_label: profile_label.into(),
+        host_version: "1.0.0".into(),
+    }
+}
+
 #[test]
 fn results_preserve_ranking_and_only_open_reference_and_result_profile() {
     let profile = "00000000-0000-4000-8000-00000000000a";
@@ -30,6 +41,71 @@ fn results_preserve_ranking_and_only_open_reference_and_result_profile() {
     );
     assert_eq!(value["items"][20]["valid"], false);
 }
+
+#[test]
+fn profile_mismatch_requires_another_connected_profile_and_no_configured_match() {
+    let other = profile(PROFILE_B, "Private Chrome profile title");
+    let configured = profile(PROFILE_A, "Configured Chrome profile");
+    assert!(profile_mismatch(PROFILE_A, &[]).is_none());
+    assert!(profile_mismatch(PROFILE_A, std::slice::from_ref(&configured)).is_none());
+    assert!(profile_mismatch(PROFILE_A, &[configured, other.clone()]).is_none());
+
+    let output = profile_mismatch(PROFILE_A, &[other]).unwrap();
+    assert_eq!(output.items[0].title, "Kwel Profile ID does not match");
+    assert!(
+        output.items[0]
+            .subtitle
+            .contains("Kwel Settings → Local Connection")
+    );
+    assert!(!output.items[0].valid);
+    let json = serde_json::to_string(&output).unwrap();
+    for private_value in [PROFILE_A, PROFILE_B, "Private Chrome profile title"] {
+        assert!(!json.contains(private_value));
+    }
+}
+
+#[test]
+fn profile_diagnosis_waits_for_deadline_and_is_rate_limited() {
+    let now = 1_700_000_000_000;
+    let deadline = (now + WAIT_MILLIS).to_string();
+    assert!(!profile_diagnostic_due("", "", now + WAIT_MILLIS));
+    assert!(!profile_diagnostic_due(&deadline, "", now));
+    assert!(profile_diagnostic_due(&deadline, "", now + WAIT_MILLIS));
+
+    let checked_at = now + WAIT_MILLIS;
+    let recent_check = checked_at.to_string();
+    assert!(!profile_diagnostic_due(
+        &deadline,
+        &recent_check,
+        checked_at + PROFILE_DIAGNOSTIC_INTERVAL_MILLIS - 1
+    ));
+    assert!(profile_diagnostic_due(
+        &deadline,
+        &recent_check,
+        checked_at + PROFILE_DIAGNOSTIC_INTERVAL_MILLIS
+    ));
+    assert!(profile_diagnostic_due(&deadline, "invalid", checked_at));
+    assert!(profile_diagnostic_due(
+        &deadline,
+        &u64::MAX.to_string(),
+        checked_at
+    ));
+}
+
+#[test]
+fn only_disconnected_errors_can_start_profile_diagnosis() {
+    assert!(can_diagnose_profile_mismatch(Code::Disconnected));
+    assert!(can_diagnose_profile_mismatch(Code::HostNotFound));
+    for code in [
+        Code::Timeout,
+        Code::PermissionRequired,
+        Code::UnsafePath,
+        Code::Busy,
+    ] {
+        assert!(!can_diagnose_profile_mismatch(code));
+    }
+}
+
 #[test]
 fn notices_are_single_disabled_rows() {
     for output in [
