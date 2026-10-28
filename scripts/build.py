@@ -184,12 +184,36 @@ def verify_workflow(path):
             assert stat.S_IMODE(mode) == (0o755 if executable else 0o644)
             archive.read(entry)
         info = plistlib.loads(archive.read("info.plist"))
+        assert info == plistlib.loads((ROOT / "workflow/alfred/info.plist").read_bytes()), "Packaged Workflow metadata differs from source"
         assert info["bundleid"] == "com.kwel.alfred.search" and info["version"] == VERSION
         field, = info["userconfigurationconfig"]
-        assert field["variable"] == "KWEL_PROFILE_ID" and field["config"]["required"] and field["config"]["default"] == ""
+        assert field == {
+            "config": {"default": "", "placeholder": "", "required": True, "trim": True},
+            "description": (
+                "Paste the Profile ID from Kwel Settings → Local Connection. "
+                "On macOS, unsigned executables may require approval on first use. "
+                "See the Workflow Readme for instructions."
+            ),
+            "label": "Kwel Profile ID",
+            "type": "textfield",
+            "variable": "KWEL_PROFILE_ID",
+        }
         assert not info.get("variables", {}).get("KWEL_PROFILE_ID")
         assert info["webaddress"] == "https://kwel.ryu.zone"
         assert "github.com/Masa-Ryu/kwel-connect/releases" in info["readme"]
+        for text in (
+            "## macOS First Launch", "unsigned and not notarized", *BINS,
+            "official GitHub Releases", "published SHA-256 checksums",
+            "System Settings → Privacy & Security → Open Anyway",
+            "Each executable may require a separate confirmation.",
+            "do not approve it; check the exact warning text.",
+            "Do not disable macOS security protections.",
+            "https://support.apple.com/en-us/102445",
+        ):
+            assert text in info["readme"], f"Missing Workflow first-launch guidance: {text}"
+        readme = archive.read("README.md")
+        assert readme == (ROOT / "README.md").read_bytes(), "Packaged README differs from source"
+        assert all(f"`{name}`".encode() in readme for name in BINS)
         objects = info["objects"]
         assert len(objects) == 4
         search = next(value for value in objects if value["type"] == "alfred.workflow.input.scriptfilter")
@@ -199,6 +223,8 @@ def verify_workflow(path):
         assert "inboundconfig" not in search["config"] and search["config"]["scriptargtype"] == 1
         assert search["config"]["scriptfile"] == "./scripts/search.sh"
         assert len(info["connections"]) == 3
+        for name in ("search.sh", "open-result.sh"):
+            assert archive.read(f"scripts/{name}") == (ROOT / "workflow/alfred/scripts" / name).read_bytes()
         assert b'./kwel-alfred search --profile-id "$profile_id" --query "$query" --limit 20 --format alfred' in archive.read("scripts/search.sh")
         assert b'./kwel-alfred open --profile-id "$profile_id" --ref "$open_ref"' in archive.read("scripts/open-result.sh")
         icon_bytes = archive.read("icon.png")
@@ -211,7 +237,7 @@ def verify_workflow(path):
                 assert str(Path.home()).encode() not in data
                 binary.write_bytes(data)
                 verify_macos_binary(binary)
-    print("Alfred graph, configuration, JSON CLI scripts, permissions and Universal binaries verified.")
+    print("Alfred first-launch guidance, graph, configuration, JSON CLI scripts, permissions and Universal binaries verified.")
 
 
 def pe_dependencies(data, pe):

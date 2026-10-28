@@ -25,6 +25,26 @@ Kwel Settingsで **Local Connection** をONにします。Chromeの権限確認�
 
 配布物は未署名・未公証です。GatekeeperやSmartScreenでブロックされる場合があります。OSの確認手順で配布元を確認してください。
 
+### macOSで初回起動時に警告が表示される場合
+
+Kwel ConnectのmacOS配布物は未署名・未公証です。初回実行時にmacOSが個別の実行ファイルをブロックする場合があります。
+
+対象となるファイル：
+
+- `kwel-native-host`：ChromeとのNative Messaging接続時に実行
+- `kwel-bridge`：ローカルCLIの実行時に使用
+- `kwel-alfred`：Alfred Workflowによる検索時に実行
+
+各ファイルは異なるタイミングで起動するため、初回確認が複数回必要になる場合があります。
+
+公式[GitHub Releases](https://github.com/Masa-Ryu/kwel-connect/releases)から取得したファイルであることと、公開されたSHA-256チェックサムとの一致を確認してください。
+
+未確認の開発元・未公証による警告の場合、対象ファイルの起動を試みた後、Appleが案内する「システム設定 → プライバシーとセキュリティ → このまま開く（Open Anyway）」で、対象ファイルごとに開くかどうかを判断できます。
+
+「マルウェアが検出された」「コンピュータに損害を与える」など、別のセキュリティ警告の場合は許可を進めず、正確な警告文を確認してください。
+
+Apple公式案内：[Macでアプリを安全に開く](https://support.apple.com/ja-jp/102445)
+
 ## Kwel for Alfred
 
 1. Releasesの **Kwel.alfredworkflow** をダブルクリックしてインポートします。

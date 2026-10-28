@@ -179,7 +179,19 @@ Kwel for Chrome: https://chromewebstore.google.com/detail/kwel/mhablbmgafbdofgaf
 
 Open Alfred, type Kyoto, choose Search Kwel, and press Return. Select a page and press Return to open it in Chrome.
 
-The first Search Kwel invocation installs or reuses the shared Kwel Connect Host. Keep Chrome open; results appear automatically when Kwel connects. If it remains disconnected, check Local Connection and the Profile ID in the same Chrome profile.</string>
+The first Search Kwel invocation installs or reuses the shared Kwel Connect Host. Keep Chrome open; results appear automatically when Kwel connects. If it remains disconnected, check Local Connection and the Profile ID in the same Chrome profile.
+
+## macOS First Launch
+
+Kwel Connect for macOS is currently unsigned and not notarized. macOS may block `kwel-alfred`, `kwel-bridge`, or `kwel-native-host` on first launch. Each executable may require a separate confirmation.
+
+Before proceeding, verify that the files came from the official GitHub Releases (https://github.com/Masa-Ryu/kwel-connect/releases) and match the published SHA-256 checksums.
+
+For an unidentified-developer or notarization warning, after trying to open the executable, you can decide whether to allow that executable in System Settings → Privacy &amp; Security → Open Anyway. If the warning reports malware or says the software will damage your computer, do not approve it; check the exact warning text.
+
+Do not disable macOS security protections.
+
+See [Apple's official support instructions](https://support.apple.com/en-us/102445).</string>
 	<key>uidata</key>
 	<dict>
 		<key>5B612B92-409B-4AC4-9F39-7E0AE18A8991</key>
@@ -230,7 +242,7 @@ The first Search Kwel invocation installs or reuses the shared Kwel Connect Host
 				<true/>
 			</dict>
 			<key>description</key>
-			<string>Paste the Profile ID from Kwel Settings → Local Connection.</string>
+			<string>Paste the Profile ID from Kwel Settings → Local Connection. On macOS, unsigned executables may require approval on first use. See the Workflow Readme for instructions.</string>
 			<key>label</key>
 			<string>Kwel Profile ID</string>
 			<key>type</key>
