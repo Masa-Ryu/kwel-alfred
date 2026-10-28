@@ -37,7 +37,17 @@ The affected executables are:
 
 These files start at different times, so each executable may require a separate confirmation on first use.
 
-Before proceeding, verify that the files came from the official [GitHub Releases](https://github.com/Masa-Ryu/kwel-connect/releases) and match the published SHA-256 checksums.
+Before proceeding, download the package you use (`KwelConnect-macos-universal.pkg` or `Kwel.alfredworkflow`) and `SHA256SUMS` from the same release on the official [GitHub Releases](https://github.com/Masa-Ryu/kwel-connect/releases) page. In the directory containing the downloads, run the command for that package:
+
+```sh
+shasum -a 256 KwelConnect-macos-universal.pkg
+# Or, for the Alfred Workflow:
+shasum -a 256 Kwel.alfredworkflow
+```
+
+Compare the printed SHA-256 with the corresponding filename's line in `SHA256SUMS`. It contains checksums for complete distribution archives and installers, not individual checksums for `kwel-native-host`, `kwel-bridge`, or `kwel-alfred`.
+
+Matching hashes confirm package integrity against the published checksum. They do not prove the developer's identity and are not a substitute for code signing.
 
 For an unidentified-developer or notarization warning, after trying to launch the affected executable, you can decide whether to allow it through **System Settings → Privacy & Security → Open Anyway**, as described by Apple. Make this decision separately for each executable.
 

@@ -203,7 +203,7 @@ def verify_workflow(path):
         assert "github.com/Masa-Ryu/kwel-connect/releases" in info["readme"]
         for text in (
             "## macOS First Launch", "unsigned and not notarized", *BINS,
-            "official GitHub Releases", "published SHA-256 checksums",
+            "official GitHub Releases",
             "System Settings → Privacy & Security → Open Anyway",
             "Each executable may require a separate confirmation.",
             "do not approve it; check the exact warning text.",
@@ -214,6 +214,20 @@ def verify_workflow(path):
         readme = archive.read("README.md")
         assert readme == (ROOT / "README.md").read_bytes(), "Packaged README differs from source"
         assert all(f"`{name}`".encode() in readme for name in BINS)
+        packages = ("KwelConnect-macos-universal.pkg", "Kwel.alfredworkflow")
+        for label, guidance in (("Workflow Readme", info["readme"]), ("README", readme.decode())):
+            for text in (
+                *(f"`{name}`" for name in packages),
+                "`SHA256SUMS` from the same release",
+                "corresponding filename's line in `SHA256SUMS`",
+                "checksums for complete distribution archives and installers, not individual checksums for",
+                "`kwel-native-host`, `kwel-bridge`, or `kwel-alfred`.",
+                "Matching hashes confirm package integrity against the published checksum.",
+                "They do not prove the developer's identity and are not a substitute for code signing.",
+            ):
+                assert text in guidance, f"Missing packaged {label} verification guidance: {text}"
+        for name in packages:
+            assert f"shasum -a 256 {name}".encode() in readme, f"Missing macOS checksum example: {name}"
         objects = info["objects"]
         assert len(objects) == 4
         search = next(value for value in objects if value["type"] == "alfred.workflow.input.scriptfilter")

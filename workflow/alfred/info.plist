@@ -185,7 +185,11 @@ The first Search Kwel invocation installs or reuses the shared Kwel Connect Host
 
 Kwel Connect for macOS is currently unsigned and not notarized. macOS may block `kwel-alfred`, `kwel-bridge`, or `kwel-native-host` on first launch. Each executable may require a separate confirmation.
 
-Before proceeding, verify that the files came from the official GitHub Releases (https://github.com/Masa-Ryu/kwel-connect/releases) and match the published SHA-256 checksums.
+Before proceeding, download `Kwel.alfredworkflow` (or `KwelConnect-macos-universal.pkg` if using the installer) and `SHA256SUMS` from the same release on the official GitHub Releases (https://github.com/Masa-Ryu/kwel-connect/releases). Calculate the SHA-256 of the downloaded package and compare it with the corresponding filename's line in `SHA256SUMS`.
+
+`SHA256SUMS` contains checksums for complete distribution archives and installers, not individual checksums for `kwel-native-host`, `kwel-bridge`, or `kwel-alfred`.
+
+Matching hashes confirm package integrity against the published checksum. They do not prove the developer's identity and are not a substitute for code signing.
 
 For an unidentified-developer or notarization warning, after trying to open the executable, you can decide whether to allow that executable in System Settings → Privacy &amp; Security → Open Anyway. If the warning reports malware or says the software will damage your computer, do not approve it; check the exact warning text.
 
