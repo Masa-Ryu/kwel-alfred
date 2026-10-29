@@ -1,46 +1,76 @@
 # Kwel Connect
 
-Kwelの検索をローカルアプリから使うための公式連携基盤です。macOS・Windows・Ubuntu向けのNative Host、JSON CLI、公式 **Kwel for Alfred** を提供します。
+Kwel Connect is the official integration layer for searching Kwel from local applications. It provides a Native Host and JSON CLI for macOS, Windows, and Ubuntu, plus the official **Kwel for Alfred** workflow.
 
-必要なもの：Google Chromeと、Local Connectionに対応した[Kwel](https://kwel.ryu.zone)。Alfredを使う場合はmacOSとAlfred 5 Powerpackも必要です。
+Requirements: Google Chrome and a version of [Kwel](https://kwel.ryu.zone) that supports Local Connection. Alfred integration also requires macOS and Alfred 5 Powerpack.
 
-## インストール
+## Installation
 
-[GitHub Releases](https://github.com/Masa-Ryu/kwel-connect/releases)から、お使いのOSに合うファイルをダウンロードします。
+Download the installer for your operating system from [GitHub Releases](https://github.com/Masa-Ryu/kwel-connect/releases).
 
-| OS | インストーラー |
+| OS | Installer |
 | --- | --- |
-| macOS 13以降（Apple Silicon / Intel） | `KwelConnect-macos-universal.pkg` |
+| macOS 13 or later (Apple Silicon / Intel) | `KwelConnect-macos-universal.pkg` |
 | Windows x64 | `KwelConnect-windows-x64-setup.exe` |
-| Ubuntu 24.04以降 amd64 | `KwelConnect-ubuntu-amd64.deb` |
-| Ubuntu 24.04以降 arm64 | `KwelConnect-ubuntu-arm64.deb` |
+| Ubuntu 24.04 or later, amd64 | `KwelConnect-ubuntu-amd64.deb` |
+| Ubuntu 24.04 or later, arm64 | `KwelConnect-ubuntu-arm64.deb` |
 
-macOSではpkgを開いて自分のホームフォルダへ、Windowsではexeを開いて現在のユーザーへインストールします。Ubuntuでは対応するdebをパッケージインストーラーで開きます。Host登録は自動で行われ、Rustのインストールは不要です。
+On macOS, open the pkg to install into your home folder. On Windows, open the exe to install for the current user. On Ubuntu, open the appropriate deb with your package installer. Native Host registration is automatic; you do not need to install Rust.
 
-macOSの利用条件は[現行Chromeの対応OS](https://support.google.com/chrome/answer/95411)に合わせています。
+The macOS requirement follows [Chrome's current system requirements](https://support.google.com/chrome/answer/95411).
 
-更新時は、使用中のChromeプロフィールでLocal ConnectionをOFFにしてからインストーラーを開き、更新後にONへ戻します。
+Before updating, turn Local Connection OFF in the Chrome profile you use. Run the installer, then turn Local Connection back ON after the update.
 
-Kwel Settingsで **Local Connection** をONにします。Chromeの権限確認が表示された場合は内容を確認して承認してください。
+Enable **Local Connection** in Kwel Settings. If Chrome displays a permission prompt, review it before approving.
 
-配布物は未署名・未公証です。GatekeeperやSmartScreenでブロックされる場合があります。OSの確認手順で配布元を確認してください。
+The downloads are unsigned, and macOS downloads are not notarized. Gatekeeper or SmartScreen may block them. Verify the release source before deciding whether to proceed.
+
+### If macOS displays a warning on first launch
+
+Kwel Connect for macOS is unsigned and not notarized. macOS may block individual executables the first time they run.
+
+The affected executables are:
+
+- `kwel-native-host`: Runs when Chrome connects through Native Messaging.
+- `kwel-bridge`: Used when running the local CLI.
+- `kwel-alfred`: Runs when searching through the Alfred Workflow.
+
+These files start at different times, so each executable may require a separate confirmation on first use.
+
+Before proceeding, download the package you use (`KwelConnect-macos-universal.pkg` or `Kwel.alfredworkflow`) and `SHA256SUMS` from the same release on the official [GitHub Releases](https://github.com/Masa-Ryu/kwel-connect/releases) page. In the directory containing the downloads, run the command for that package:
+
+```sh
+shasum -a 256 KwelConnect-macos-universal.pkg
+# Or, for the Alfred Workflow:
+shasum -a 256 Kwel.alfredworkflow
+```
+
+Compare the printed SHA-256 with the corresponding filename's line in `SHA256SUMS`. It contains checksums for complete distribution archives and installers, not individual checksums for `kwel-native-host`, `kwel-bridge`, or `kwel-alfred`.
+
+Matching hashes confirm package integrity against the published checksum. They do not prove the developer's identity and are not a substitute for code signing.
+
+For an unidentified-developer or notarization warning, after trying to launch the affected executable, you can decide whether to allow it through **System Settings → Privacy & Security → Open Anyway**, as described by Apple. Make this decision separately for each executable.
+
+For other security warnings, such as malware being detected or software that will damage your computer, do not proceed with approval. Check the exact warning text.
+
+Apple's official instructions: [Safely open apps on your Mac](https://support.apple.com/en-us/102445).
 
 ## Kwel for Alfred
 
-1. Releasesの **Kwel.alfredworkflow** をダブルクリックしてインポートします。
-2. Kwel SettingsのProfile IDをコピーし、Workflowの **Configure Workflow… → Kwel Profile ID** に設定します。
-3. Alfred Preferences → **Features → Default Results → Setup fallback searches** で **Search Kwel** を追加します。
+1. Double-click **Kwel.alfredworkflow** from Releases to import it into Alfred.
+2. Copy the Profile ID from Kwel Settings and paste it into the Workflow's **Configure Workflow… → Kwel Profile ID** field.
+3. Add **Search Kwel** in Alfred Preferences → **Features → Default Results → Setup fallback searches**.
 
-Alfredに`Kyoto`などの検索語を入力し、**Search Kwel** を選びます。結果を選んでReturnを押すと、そのChromeプロフィールでページが開きます。接頭辞や追加ホットキーは必要ありません。
+Type a query such as `Kyoto` in Alfred and choose **Search Kwel**. Select a result and press Return to open the page in that Chrome profile. No prefix or additional hotkey is required.
 
-Alfredのみを使う場合、初回検索でHostが自動登録されるため、pkgの事前インストールは不要です。Workflowを削除しても共通Hostは残ります。
+If you only use Alfred, the first search automatically registers the Host, so you do not need to install the pkg beforehand. Removing the Workflow leaves the shared Host installed.
 
-## 削除
+## Uninstallation
 
-Local ConnectionをOFFにしてから、macOSでは`~/Library/Application Support/Kwel/NativeBridge/`内の **Kwel Connect Uninstaller**、Windowsでは設定のアプリ一覧、Ubuntuではパッケージマネージャーから削除します。使用中のHostは削除を拒否し、Kwelの履歴やプロフィールは保持します。
+Turn Local Connection OFF, then uninstall using **Kwel Connect Uninstaller** in `~/Library/Application Support/Kwel/NativeBridge/` on macOS, the app list in Windows Settings, or your package manager on Ubuntu. The uninstaller refuses to remove a Host that is in use. Your Kwel history and profiles are preserved.
 
-## ランチャー開発者向け
+## For launcher developers
 
-[Local Client Protocol v1](docs/local-client-protocol-v1.md)は他言語から利用できます。[Native Messaging仕様](docs/native-messaging-v1.md)、[セキュリティ](docs/security.md)、[開発手順](docs/development.md)も参照してください。
+[Local Client Protocol v1](docs/local-client-protocol-v1.md) can be used from other languages. See also the [Native Messaging specification](docs/native-messaging-v1.md), [security documentation](docs/security.md), and [development guide](docs/development.md).
 
-公式のサポート対象は3 OS向けHostとAlfred Workflowです。第三者ランチャーの実装・品質・動作は、その開発者の責任となります。
+Official support covers the Host for the three operating systems and the Alfred Workflow. Third-party launcher developers are responsible for the implementation, quality, and behavior of their launchers.
